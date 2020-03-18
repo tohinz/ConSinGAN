@@ -6,9 +6,9 @@ from shutil import copyfile, copytree
 import glob
 import time
 import random
+import torch
 
 from ConSinGAN.config import get_arguments
-from ConSinGAN.manipulate import *
 import ConSinGAN.functions as functions
 
 
@@ -26,7 +26,6 @@ def get_scale_factor(opt):
 # noinspection PyInterpreter
 if __name__ == '__main__':
     parser = get_arguments()
-    parser.add_argument('--input_dir', help='input image dir', default='Input/Images')
     parser.add_argument('--input_name', help='input image name', required=True)
     parser.add_argument('--mode', help='task to be done', default='train')
     parser.add_argument('--gpu', type=int, help='which GPU', default=0)
@@ -81,13 +80,6 @@ if __name__ == '__main__':
     NoiseAmp = []
 
     real = functions.read_image(opt)
-
-    if opt.train_mode == "generation" or opt.train_mode == "retarget":
-        if opt.num_training_scales > 0:
-            opt.scale_factor_init = get_scale_factor(opt)
-
-    opt.scale_factor = opt.scale_factor_init
-
     dir2save = functions.generate_dir2save(opt)
 
     if osp.exists(dir2save):
@@ -104,8 +96,7 @@ if __name__ == '__main__':
         current_path = os.path.dirname(os.path.abspath(__file__))
         for py_file in glob.glob(osp.join(current_path, "*.py")):
             copyfile(py_file, osp.join(dir2save, py_file.split("/")[-1]))
-        copytree(osp.join(current_path, "ConSinGAN"), osp.join(dir2save, "SinGAN"))
-        copytree(osp.join(current_path, "SIFID"), osp.join(dir2save, "SIFID"))
+        copytree(osp.join(current_path, "ConSinGAN"), osp.join(dir2save, "ConSinGAN"))
 
         print("Training model ({})".format(opt.timestamp))
         functions.adjust_scales2image(real, opt)

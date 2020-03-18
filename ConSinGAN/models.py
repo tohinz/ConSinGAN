@@ -32,7 +32,7 @@ def upsample(x, size):
 
 class ConvBlock(nn.Sequential):
     def __init__(self, in_channel, out_channel, ker_size, padd, opt, generator=False):
-        super(ConvBlockG,self).__init__()
+        super(ConvBlock,self).__init__()
         self.add_module('conv', nn.Conv2d(in_channel, out_channel, kernel_size=ker_size, stride=1, padding=padd))
         if generator and opt.batch_norm:
             self.add_module('norm', nn.BatchNorm2d(out_channel))
@@ -71,10 +71,12 @@ class GrowingGenerator(nn.Module):
 
         self.head = ConvBlock(opt.nc_im, N, opt.ker_size, opt.padd_size, opt, generator=True)
 
-        self.body = nn.Sequential()
+        self.body = torch.nn.ModuleList([])
+        _first_stage = nn.Sequential()
         for i in range(opt.num_layer):
             block = ConvBlock(N, N, opt.ker_size, opt.padd_size, opt, generator=True)
-            self.body.add_module('block%d'%(i),block)
+            _first_stage.add_module('block%d'%(i),block)
+        self.body.append(_first_stage)
 
         self.tail = nn.Sequential(
             nn.Conv2d(N, opt.nc_im, kernel_size=opt.ker_size, padding=opt.padd_size),
@@ -91,9 +93,10 @@ class GrowingGenerator(nn.Module):
         if self.opt.train_mode == "generation":
             x = upsample(x, size=[x.shape[2] + 2, x.shape[3] + 2])
         x = m_pad_block(x)
-        x_prev_out = block(x)
+        x_prev_out = self.body[0](x)
 
         for idx, block in enumerate(self.body[1:]):
+            idx += 1
             if self.opt.train_mode == "generation":
                 x_prev_out_1 = upsample(x_prev_out, size=[real_shapes[idx][2], real_shapes[idx][3]])
                 x_prev_out_2 = upsample(x_prev_out, size=[real_shapes[idx][2] + self.opt.num_layer*2,

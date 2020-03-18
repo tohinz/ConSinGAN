@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 import math
+from skimage import io as img
 from skimage import color, morphology, filters
 import os
 import random
@@ -71,6 +72,10 @@ def move_to_cpu(t):
     return t
 
 
+def save_image(name, image):
+    plt.imsave(name, convert_image_np(image), vmin=0, vmax=1)
+
+
 def calc_gradient_penalty(netD, real_data, fake_data, LAMBDA, device):
     MSGGan = False
     if  MSGGan:
@@ -91,7 +96,7 @@ def calc_gradient_penalty(netD, real_data, fake_data, LAMBDA, device):
         interpolates = interpolates.to(device)#.cuda()
         interpolates = torch.autograd.Variable(interpolates, requires_grad=True)
 
-        disc_interpolates, _ = netD(interpolates)
+        disc_interpolates = netD(interpolates)
 
     gradients = torch.autograd.grad(outputs=disc_interpolates, inputs=interpolates,
                               grad_outputs=torch.ones(disc_interpolates.size()).to(device),#.cuda(), #if use_cuda else torch.ones(
@@ -103,7 +108,7 @@ def calc_gradient_penalty(netD, real_data, fake_data, LAMBDA, device):
 
 
 def read_image(opt):
-    x = img.imread('%s/%s' % (opt.input_dir,opt.input_name))
+    x = img.imread('%s' % (opt.input_name))
     x = np2torch(x,opt)
     x = x[:,0:3,:,:]
     return x
@@ -135,7 +140,7 @@ def torch2uint8(x):
 
 
 def read_image2np(opt):
-    x = img.imread('%s/%s' % (opt.input_dir,opt.input_name))
+    x = img.imread('%s' % (opt.input_name))
     x = x[:, :, 0:3]
     return x
 
@@ -210,15 +215,15 @@ def load_trained_model(opt):
 
 def generate_dir2save(opt):
     training_image_name = opt.input_name[:-4].split("/")[-1]
-    dir2save = 'TrainedModels/{}/scale_factor={}'.format(training_image_name, opt.scale_factor)
-    dir2save += "_" + opt.timestamp
+    dir2save = 'TrainedModels/{}/'.format(training_image_name)
+    dir2save += opt.timestamp
     dir2save += "_train_depth_{}_lr_scale_{}".format(opt.train_depth, opt.lr_scale)
     if opt.train_mode != "generation":
         dir2save += "_train_scales_" + str(opt.train_scales)
     if opt.batch_norm == 1:
         dir2save += "_BN"
     dir2save += "_act_" + opt.activation
-    if opt.act == "lrelu":
+    if opt.activation == "lrelu":
         dir2save += "_" + str(opt.lrelu_alpha)
     if opt.add_img:
         dir2save += "_addimg"
