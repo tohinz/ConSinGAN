@@ -73,36 +73,31 @@ if __name__ == '__main__':
         else:
             from ConSinGAN.training_prosingan_editing import *
 
-
-    Gs = []
-    Zs = []
-    reals = []
-    NoiseAmp = []
-
-    real = functions.read_image(opt)
     dir2save = functions.generate_dir2save(opt)
 
     if osp.exists(dir2save):
-        print('trained model already exist')
-    else:
-        try:
-            os.makedirs(dir2save)
-        except OSError:
-            pass
+        print('Trained model already exist: {}'.format(dir2save))
+        exit()
 
-        with open(osp.join(dir2save, 'opt.txt'), 'w') as f:
-            for o in opt.__dict__:
-                f.write("{}\t-\t{}\n".format(o, opt.__dict__[o]))
-        current_path = os.path.dirname(os.path.abspath(__file__))
-        for py_file in glob.glob(osp.join(current_path, "*.py")):
-            copyfile(py_file, osp.join(dir2save, py_file.split("/")[-1]))
-        copytree(osp.join(current_path, "ConSinGAN"), osp.join(dir2save, "ConSinGAN"))
+    # create log dir
+    try:
+        os.makedirs(dir2save)
+    except OSError:
+        pass
 
-        print("Training model ({})".format(opt.timestamp))
-        functions.adjust_scales2image(real, opt)
+    # save hyperparameters and code files
+    with open(osp.join(dir2save, 'parameters.txt'), 'w') as f:
+        for o in opt.__dict__:
+            f.write("{}\t-\t{}\n".format(o, opt.__dict__[o]))
+    current_path = os.path.dirname(os.path.abspath(__file__))
+    for py_file in glob.glob(osp.join(current_path, "*.py")):
+        copyfile(py_file, osp.join(dir2save, py_file.split("/")[-1]))
+    copytree(osp.join(current_path, "ConSinGAN"), osp.join(dir2save, "ConSinGAN"))
 
-        start = time.time()
-        train(opt, Gs, Zs, reals, NoiseAmp)
-        end = time.time()
-        elapsed_time = end - start
-        print("Time for training: {} seconds".format(elapsed_time))
+    # train model
+    print("Training model ({})".format(opt.timestamp))
+    start = time.time()
+    train(opt)
+    end = time.time()
+    elapsed_time = end - start
+    print("Time for training: {} seconds".format(elapsed_time))

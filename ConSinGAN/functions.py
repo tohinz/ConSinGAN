@@ -155,25 +155,7 @@ def save_networks(netG, netDs ,z, opt):
     torch.save(z, '%s/z_opt.pth' % (opt.outf))
 
 
-# def adjust_scales2image(real_,opt):
-#     #opt.num_scales = int((math.log(math.pow(opt.min_size / (real_.shape[2]), 1), opt.scale_factor_init))) + 1
-#     opt.num_scales = math.ceil(
-#         (math.log
-#          (math.pow
-#           (opt.min_size /
-#            (min(real_.shape[2], real_.shape[3])), 1), opt.scale_factor_init))) + 1
-#     if opt.num_training_scales > 0:
-#         opt.num_scales = opt.num_training_scales
-#     scale2stop = math.ceil(math.log(min([opt.max_size, max([real_.shape[2], real_.shape[3]])]) / max([real_.shape[2], real_.shape[3]]),opt.scale_factor_init))
-#     opt.stop_scale = opt.num_scales - scale2stop
-#     opt.scale1 = min(opt.max_size / max([real_.shape[2], real_.shape[3]]),1)  # min(250/max([real_.shape[0],real_.shape[1]]),1)
-#     real = imresize(real_, opt.scale1, opt)
-#     opt.scale_factor = math.pow(opt.min_size/(min(real.shape[2],real.shape[3])),1/(opt.stop_scale))
-#     scale2stop = math.ceil(math.log(min([opt.max_size, max([real_.shape[2], real_.shape[3]])]) / max([real_.shape[2], real_.shape[3]]),opt.scale_factor_init))
-#     opt.stop_scale = opt.num_scales - scale2stop
-#     return real
-
-def adjust_scales2image(real_,opt):
+def adjust_scales2image(real_, opt):
     opt.scale1 = min(opt.max_size / max([real_.shape[2], real_.shape[3]]),1)
     real = imresize(real_, opt.scale1, opt)
 
@@ -182,7 +164,8 @@ def adjust_scales2image(real_,opt):
     return real
 
 
-def create_reals_pyramid(real,reals,opt):
+def create_reals_pyramid(real, opt):
+    reals = []
     # use old rescaling method for harmonization
     if opt.train_mode == "harmonization":
         for i in range(opt.stop_scale):
@@ -265,7 +248,7 @@ def dilate_mask(mask,opt):
     mask = np2torch(mask,opt)
     opt.nc_im = nc_im
     mask = mask.expand(1, 3, mask.shape[2], mask.shape[3])
-    plt.imsave('%s/%s_mask_dilated.png' % (opt.ref_dir, opt.ref_name[:-4]), convert_image_np(mask, opt), vmin=0,vmax=1)
+    plt.imsave('%s/%s_mask_dilated.jpg' % (opt.ref_dir, opt.ref_name[:-4]), convert_image_np(mask), vmin=0,vmax=1)
     mask = (mask-mask.min())/(mask.max()-mask.min())
     return mask
 

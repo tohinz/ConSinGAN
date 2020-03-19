@@ -8,35 +8,30 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
-from ConSinGAN.imresize import imresize, imresize_to_shape
 import ConSinGAN.functions as functions
 import ConSinGAN.models as models
 
 
-def train(opt, Gs, Zs, reals, NoiseAmp):
+def train(opt):
     print("Training model with the following parameters:")
     print("\t number of stages: {}".format(opt.train_stages))
     print("\t number of concurrently trained stages: {}".format(opt.train_depth))
     print("\t learning rate scaling: {}".format(opt.lr_scale))
-    # print("\t")
+    print("\t non-linearity: {}".format(opt.activation))
+
+    real = functions.read_image(opt)
+    real = functions.adjust_scales2image(real, opt)
+    reals = functions.create_reals_pyramid(real, opt)
+    print("Training on image pyramid: {}".format([r.shape for r in reals]))
     print("")
 
-    real_ = functions.read_image(opt)
-    scale_num = 0
-    real = imresize(real_, opt.scale1, opt)
-    reals = functions.create_reals_pyramid(real, reals, opt)
-    reals = reals[opt.start_scale:]
-
-    m_pad = nn.ZeroPad2d(1)
-    m_pad_block = nn.ZeroPad2d(2)
-
-    print("Image pyramid:")
-    print([_real.shape for _real in reals])
-    G_curr = init_G(opt)
+    generator = init_G(opt)
+    fixed_noise = []
+    noise_amp = []
     opt.nzx = reals[0].shape[2]
     opt.nzy = reals[0].shape[3]
 
-    while scale_num<opt.stop_scale+1-opt.start_scale:
+    for scale_num in range(opt.stop_scale+1):
         opt.out_ = functions.generate_dir2save(opt)
         opt.outf = '%s/%d' % (opt.out_,scale_num)
         try:
@@ -45,28 +40,26 @@ def train(opt, Gs, Zs, reals, NoiseAmp):
                 print("error")
                 print(OSError)
                 pass
-        plt.imsave('%s/real_scale.png' % (opt.outf), functions.convert_image_np(reals[scale_num]), vmin=0, vmax=1)
+        plt.imsave('{}/real_scale.jpg'.format(opt.outf), functions.convert_image_np(reals[scale_num]), vmin=0, vmax=1)
 
-        D_curr = init_D(opt)
+        d_curr = init_D(opt)
         if scale_num > 0:
-            D_curr.load_state_dict(torch.load('%s/%d/netD.pth' % (opt.out_,scale_num-1)))
-            G_curr.init_next_stage()
+            d_curr.load_state_dict(torch.load('%s/%d/netD.pth' % (opt.out_,scale_num-1)))
+            generator.init_next_stage()
 
         writer = SummaryWriter(log_dir=opt.outf)
-        Zs, NoiseAmp, G_curr, D_curr = train_single_scale(D_curr, G_curr, reals, Zs, NoiseAmp, opt, scale_num, writer)
-        generate_samples(G_curr, opt, scale_num, m_pad, m_pad_block, NoiseAmp, writer, reals)
+        fixed_noise, noise_amp, generator, d_curr = train_single_scale(d_curr, generator, reals, fixed_noise, noise_amp, opt, scale_num, writer)
 
-        torch.save(Zs, '%s/Zs.pth' % (opt.out_))
-        torch.save(Gs, '%s/Gs.pth' % (opt.out_))
+        torch.save(fixed_noise, '%s/fixed_noise.pth' % (opt.out_))
+        torch.save(generator, '%s/G.pth' % (opt.out_))
         torch.save(reals, '%s/reals.pth' % (opt.out_))
-        torch.save(NoiseAmp, '%s/NoiseAmp.pth' % (opt.out_))
-        scale_num+=1
-        del D_curr
+        torch.save(noise_amp, '%s/noise_amp.pth' % (opt.out_))
+        del d_curr
     writer.close()
     return
 
 
-def train_single_scale(netD, netG, reals, Zs, NoiseAmp, opt, depth, writer):
+def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, writer):
     reals_shapes = [real.shape for real in reals]
     real = reals[depth]
     opt.nzx = real.shape[2]
@@ -75,10 +68,11 @@ def train_single_scale(netD, netG, reals, Zs, NoiseAmp, opt, depth, writer):
     m_pad = nn.ZeroPad2d(1)
     m_pad_block = nn.ZeroPad2d(2)
 
-
     alpha = opt.alpha
 
+    ############################
     # define z_opt for training on reconstruction
+    ###########################
     if depth == 0:
         z_opt = reals[0]
     else:
@@ -86,9 +80,11 @@ def train_single_scale(netD, netG, reals, Zs, NoiseAmp, opt, depth, writer):
                                           reals_shapes[depth][2]+opt.num_layer*2,
                                           reals_shapes[depth][3]+opt.num_layer*2],
                                           device=opt.device)
+    fixed_noise.append(z_opt.detach())
 
-    Zs.append(z_opt.detach())
-
+    ############################
+    # define optimizers, learning rate schedulers, and learning rates for lower stages
+    ###########################
     # setup optimizers for D
     optimizerD = optim.Adam(netD.parameters(), lr=opt.lr_d, betas=(opt.beta1, 0.999))
 
@@ -108,15 +104,34 @@ def train_single_scale(netD, netG, reals, Zs, NoiseAmp, opt, depth, writer):
     parameter_list += [{"params": netG.tail.parameters(), "lr": opt.lr_g}]
     optimizerG = optim.Adam(parameter_list, lr=opt.lr_g, betas=(opt.beta1, 0.999))
 
+    # define learning rate schedules
     schedulerD = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizerD, milestones=[0.8*opt.niter], gamma=opt.gamma)
     schedulerG = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizerG, milestones=[0.8*opt.niter], gamma=opt.gamma)
 
+    ############################
+    # calculate noise_amp
+    ###########################
+    if depth == 0:
+        noise_amp.append(1)
+    else:
+        noise_amp.append(0)
+        z_reconstruction = netG(fixed_noise, reals_shapes, m_pad, m_pad_block, noise_amp)
+
+        criterion = nn.MSELoss()
+        rec_loss = criterion(z_reconstruction, real)
+
+        RMSE = torch.sqrt(rec_loss).detach()
+        _noise_amp = opt.noise_amp_init * RMSE
+        noise_amp[-1] = _noise_amp
+
+    # start training
     _iter = tqdm(range(opt.niter))
-    
     for iter in _iter:
         _iter.set_description('stage [%d/%d]:[%d/%d]' % (depth, opt.stop_scale, iter+1, opt.niter))
 
-        # sample noise for unconditional generation
+        ############################
+        # (0) sample noise for unconditional generation
+        ###########################
         noise = []
         for d in range(depth+1):
             if d == 0:
@@ -127,23 +142,7 @@ def train_single_scale(netD, netG, reals, Zs, NoiseAmp, opt, depth, writer):
                                                        reals_shapes[d][2]+opt.num_layer*2,
                                                        reals_shapes[d][3]+opt.num_layer*2],
                                                        device=opt.device).detach())
-        ############################
-        # (0) Calculate NoiseAmp
-        ###########################
-        if iter == 0 and depth == 0:
-            noise_amp = 1
-            NoiseAmp.append(noise_amp)
-        elif iter == 0:
-            NoiseAmp.append(0)
-            z_reconstruction = netG(Zs, reals_shapes, m_pad, m_pad_block, NoiseAmp)
-            z_reconstruction = imresize_to_shape(z_reconstruction, real.shape[2:], opt)
 
-            criterion = nn.MSELoss()
-            rec_loss = criterion(z_reconstruction, real)
-
-            RMSE = torch.sqrt(rec_loss).detach()
-            noise_amp = opt.noise_amp_init * RMSE
-            NoiseAmp[-1] = noise_amp
 
         ############################
         # (1) Update D network: maximize D(x) + D(G(z))
@@ -156,10 +155,10 @@ def train_single_scale(netD, netG, reals, Zs, NoiseAmp, opt, depth, writer):
 
             # train with fake
             if j == opt.Dsteps - 1:
-                fake = netG(noise, reals_shapes, m_pad, m_pad_block, NoiseAmp)
+                fake = netG(noise, reals_shapes, m_pad, m_pad_block, noise_amp)
             else:
                 with torch.no_grad():
-                    fake = netG(noise, reals_shapes, m_pad, m_pad_block, NoiseAmp)
+                    fake = netG(noise, reals_shapes, m_pad, m_pad_block, noise_amp)
 
             output = netD(fake.detach())
             errD_fake = output.mean()
@@ -177,7 +176,7 @@ def train_single_scale(netD, netG, reals, Zs, NoiseAmp, opt, depth, writer):
 
         if alpha != 0:
             loss = nn.MSELoss()
-            rec = netG(Zs, reals_shapes, m_pad, m_pad_block, NoiseAmp)
+            rec = netG(fixed_noise, reals_shapes, m_pad, m_pad_block, noise_amp)
             rec_loss = alpha * loss(rec, real)
         else:
             rec_loss = 0
@@ -192,26 +191,26 @@ def train_single_scale(netD, netG, reals, Zs, NoiseAmp, opt, depth, writer):
         ############################
         # (3) Log Results
         ###########################
-        if iter % 250 == 0 or iter == (opt.niter - 1):
-            writer.add_scalar('Loss/train/D/real/{}'.format(j), -errD_real.item(), iter)
-            writer.add_scalar('Loss/train/D/fake/{}'.format(j), errD_fake.item(), iter)
-            writer.add_scalar('Loss/train/D/gradient_penalty/{}'.format(j), gradient_penalty.item(), iter)
-            writer.add_scalar('Loss/train/G/gen', errG.item(), iter)
-            writer.add_scalar('Loss/train/G/reconstruction', rec_loss.item(), iter)
-        if iter % 500 == 0 or iter == (opt.niter - 1):
-            functions.save_image('{}/fake_sample_{}.png'.format(opt.outf, iter), fake.detach())
-            functions.save_image('{}/reconstruction_{}.png'.format(opt.outf, iter), rec.detach())
-            generate_samples(netG, opt, depth, m_pad, m_pad_block, NoiseAmp, writer, reals)
+        if iter % 250 == 0 or iter+1 == opt.niter:
+            writer.add_scalar('Loss/train/D/real/{}'.format(j), -errD_real.item(), iter+1)
+            writer.add_scalar('Loss/train/D/fake/{}'.format(j), errD_fake.item(), iter+1)
+            writer.add_scalar('Loss/train/D/gradient_penalty/{}'.format(j), gradient_penalty.item(), iter+1)
+            writer.add_scalar('Loss/train/G/gen', errG.item(), iter+1)
+            writer.add_scalar('Loss/train/G/reconstruction', rec_loss.item(), iter+1)
+        if iter % 500 == 0 or iter+1 == opt.niter:
+            functions.save_image('{}/fake_sample_{}.jpg'.format(opt.outf, iter+1), fake.detach())
+            functions.save_image('{}/reconstruction_{}.jpg'.format(opt.outf, iter+1), rec.detach())
+            generate_samples(netG, opt, depth, m_pad, m_pad_block, noise_amp, writer, reals, iter+1)
 
         schedulerD.step()
         schedulerG.step()
         # break
 
     functions.save_networks(netG, netD, z_opt, opt)
-    return Zs, NoiseAmp, netG, netD
+    return fixed_noise, noise_amp, netG, netD
 
 
-def generate_samples(netG, opt, scale, m_pad, m_pad_block, NoiseAmp, writer, reals, n=5):
+def generate_samples(netG, opt, scale, m_pad, m_pad_block, noise_amp, writer, reals, iter, n=10):
     opt.out_ = functions.generate_dir2save(opt)
     dir2save = '{}/gen_samples_stage_{}'.format(opt.out_, scale)
     reals_shapes = [r.shape for r in reals]
@@ -232,14 +231,14 @@ def generate_samples(netG, opt, scale, m_pad, m_pad_block, NoiseAmp, writer, rea
                                                            reals_shapes[d][2] + opt.num_layer * 2,
                                                            reals_shapes[d][3] + opt.num_layer * 2],
                                                            device=opt.device).detach())
-            sample = netG(noise, reals_shapes, m_pad, m_pad_block, NoiseAmp)
+            sample = netG(noise, reals_shapes, m_pad, m_pad_block, noise_amp)
             all_images.append(sample)
-            functions.save_image('{}/gen_sample_{}.png'.format(dir2save, idx), sample.detach())
+            functions.save_image('{}/gen_sample_{}.jpg'.format(dir2save, idx), sample.detach())
 
         all_images = torch.cat(all_images, 0)
         all_images[0] = reals[scale].squeeze()
-        grid = make_grid(all_images, nrow=min(10, n), normalize=True)
-        writer.add_image('gen_images_{}'.format(scale), grid, 0)
+        grid = make_grid(all_images, nrow=min(5, n), normalize=True)
+        writer.add_image('gen_images_{}'.format(scale), grid, iter)
 
 
 def init_G(opt):
