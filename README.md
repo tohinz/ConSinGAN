@@ -27,6 +27,7 @@ python main_train.py --gpu 0 --train_mode generation --input_name Images/Generat
 ```
 
 The output is saved to `TrainedModels/` and we log the training process with Tensorboard.
+The top left image in the visualized image grids is the original training image, all other images are generated images.
 To monitor the progress go to the respective folder and run
 
 ```
