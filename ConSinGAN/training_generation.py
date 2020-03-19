@@ -210,7 +210,7 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
     return fixed_noise, noise_amp, netG, netD
 
 
-def generate_samples(netG, opt, scale, m_pad, m_pad_block, noise_amp, writer, reals, iter, n=10):
+def generate_samples(netG, opt, scale, m_pad, m_pad_block, noise_amp, writer, reals, iter, n=25):
     opt.out_ = functions.generate_dir2save(opt)
     dir2save = '{}/gen_samples_stage_{}'.format(opt.out_, scale)
     reals_shapes = [r.shape for r in reals]
