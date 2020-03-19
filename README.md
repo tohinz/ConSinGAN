@@ -11,7 +11,9 @@ The latest convolutional layers are trained with a given learning rate, while pr
 ![Model-Architecture](Examples/unconditional_generation.jpg)
 
 # Installation
-todo give requirements.txt
+
+- python 3.5
+- pytorch 1.1.0
 
 ```
 pip install -r requirements.txt
