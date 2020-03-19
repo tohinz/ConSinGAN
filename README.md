@@ -20,10 +20,17 @@ To affect sample diversity and image quality we recomment playing around with th
 This can be especially helpful if the images are more complex (use a higher learning rate scaling) or you want to train on images with higher resolution (use more stages).
 For example, increasing the learning rate scaling will mean that lower stages are trained with a higher learning rate and can, therefore, learn a more faithful model of the original image.
 For example, observe the difference in generated images of the Colusseum if the model is trained with a learning rate scale of `0.1` or `0.5`:
-todo inser example image here
+todo insert example image here
 
 ```
 python main_train.py --gpu 0 --train_mode generation --input_name Images/Generation/colusseum.jpg --lr_scale 0.5
+```
+
+The output is saved to `TrainedModels/` and we log the training process with Tensorboard.
+To monitor the progress go to the respective folder and run
+
+```
+ tensorboard --logdir .
 ```
 
 Training on more stages can help with images that exhibit a large global structure that should stay the same:
