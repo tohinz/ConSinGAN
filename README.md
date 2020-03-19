@@ -28,13 +28,19 @@ To affect sample diversity and image quality we recomment playing around with th
 This can be especially helpful if the images are more complex (use a higher learning rate scaling) or you want to train on images with higher resolution (use more stages).
 For example, increasing the learning rate scaling will mean that lower stages are trained with a higher learning rate and can, therefore, learn a more faithful model of the original image.
 For example, observe the difference in generated images of the Colusseum if the model is trained with a learning rate scale of `0.1` or `0.5`:
-todo insert example image here
+![Model-Architecture](examples/lr_scale_vis.jpg)
+
+To modify the learning rate scaling run:
 
 ```
 python main_train.py --gpu 0 --train_mode generation --input_name Images/Generation/colusseum.jpg --lr_scale 0.5
 ```
 
-Training on more stages can help with images that exhibit a large global structure that should stay the same:
+Training on more stages can help with images that exhibit a large global structure that should stay the same, see e.g.:
+![Model-Architecture](examples/stages_vis.jpg)
+
+
+To modify the number of trained stages run:
 
 ```
 python main_train.py --gpu 0 --train_mode generation --input_name Images/Generation/colusseum.jpg --train_stages 7
