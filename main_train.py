@@ -95,7 +95,7 @@ if __name__ == '__main__':
     copytree(osp.join(current_path, "ConSinGAN"), osp.join(dir2save, "ConSinGAN"))
 
     # train model
-    print("Training model ({})".format(opt.timestamp))
+    print("Training model ({})".format(dir2save))
     start = time.time()
     train(opt)
     end = time.time()
