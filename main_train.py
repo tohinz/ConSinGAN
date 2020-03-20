@@ -27,6 +27,7 @@ def get_scale_factor(opt):
 if __name__ == '__main__':
     parser = get_arguments()
     parser.add_argument('--input_name', help='input image name', required=True)
+    parser.add_argument('--naive_img', help='naive input image for harmonization or editing')
     parser.add_argument('--gpu', type=int, help='which GPU', default=0)
     parser.add_argument('--train_mode', default='generation',
                         choices=['generation', 'retarget', 'harmonization', 'editing'],
