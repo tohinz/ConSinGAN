@@ -94,7 +94,7 @@ python main_train.py --gpu 0 --train_mode harmonization --train_stages 3 --min_s
 If you already have a naive image that you want to use to monitor the progress use:
 
 ```
-python main_train.py --gpu 0 --train_mode harmonization --train_stages 3 --min_size 120 --lrelu_alpha 0.3 --niter 1000 --batch_norm --input_name Images/Harmonization/street.jpg --naive_img Images/Harmonization/street_naive.jpg
+python main_train.py --gpu 0 --train_mode harmonization --train_stages 3 --min_size 120 --lrelu_alpha 0.3 --niter 1000 --batch_norm --input_name Images/Harmonization/pencil_tree.jpg --naive_img Images/Harmonization/pencil_tree_naive.jpg
 ```
 
 # Editing
