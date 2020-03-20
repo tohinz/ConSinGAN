@@ -28,8 +28,6 @@ def train(opt):
     generator = init_G(opt)
     fixed_noise = []
     noise_amp = []
-    opt.nzx = reals[0].shape[2]
-    opt.nzy = reals[0].shape[3]
 
     for scale_num in range(opt.stop_scale+1):
         opt.out_ = functions.generate_dir2save(opt)
@@ -37,10 +35,9 @@ def train(opt):
         try:
             os.makedirs(opt.outf)
         except OSError:
-                print("error")
                 print(OSError)
                 pass
-        plt.imsave('{}/real_scale.jpg'.format(opt.outf), functions.convert_image_np(reals[scale_num]), vmin=0, vmax=1)
+        functions.save_image('{}/real_scale.jpg'.format(opt.outf), reals[scale_num])
 
         d_curr = init_D(opt)
         if scale_num > 0:
@@ -62,8 +59,6 @@ def train(opt):
 def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, writer):
     reals_shapes = [real.shape for real in reals]
     real = reals[depth]
-    opt.nzx = real.shape[2]
-    opt.nzy = real.shape[3]
 
     alpha = opt.alpha
 

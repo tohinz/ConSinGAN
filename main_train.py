@@ -60,16 +60,16 @@ if __name__ == '__main__':
     elif opt.train_mode == "harmonization":
         if opt.fine_tune_model:
             if opt.hq:
-                from ConSinGAN.training_prosingan_harmonization_finetune_model_highres import *
+                from ConSinGAN.training_harmonization_finetune_model_highres import *
             else:
-                from ConSinGAN.training_prosingan_harmonization_finetune_model import *
+                from ConSinGAN.training_harmonization_finetune_model import *
         else:
-            from ConSinGAN.training_prosingan_harmonization import *
+            from ConSinGAN.training_harmonization import *
     elif opt.train_mode == "editing":
         if opt.fine_tune_model:
-            from ConSinGAN.training_prosingan_editing_finetune_model import *
+            from ConSinGAN.training_editing_finetune_model import *
         else:
-            from ConSinGAN.training_prosingan_editing import *
+            from ConSinGAN.training_editing import *
 
     dir2save = functions.generate_dir2save(opt)
 
