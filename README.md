@@ -88,7 +88,7 @@ python main_train.py --gpu 0 --train_mode retarget --input_name Images/Generatio
 
 
 ```
-python main_train.py --gpu 0 --train_mode harmonization --train_stages 3 --min_size 120 --lrelu_alpha 0.3 --batch_norm --input_name Images/Harmonization/oil_building.jpg
+python main_train.py --gpu 0 --train_mode harmonization --train_stages 3 --min_size 120 --lrelu_alpha 0.3 --niter 1000 --batch_norm --input_name Images/Harmonization/oil_building.jpg
 ```
 
 # Editing
