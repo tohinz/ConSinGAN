@@ -62,8 +62,7 @@ if __name__ == '__main__':
     parser = get_arguments()
     parser.add_argument('--model_dir', help='input image name', required=True)
     parser.add_argument('--gpu', type=int, help='which GPU', default=0)
-
-    num_samples = 10
+    parser.add_argument('--num_samples', type=int, help='which GPU', default=50)
 
     opt = parser.parse_args()
     _gpu = opt.gpu
@@ -110,14 +109,18 @@ if __name__ == '__main__':
             generate_samples(netG, reals_shapes, m_pad, m_pad_block, noise_amp, reconstruct=True)
 
             # generate random samples of normal resolution
-            rs0 = generate_samples(netG, reals_shapes, m_pad, m_pad_block, noise_amp,)
+            rs0 = generate_samples(netG, reals_shapes, m_pad, m_pad_block, noise_amp, n=opt.num_samples)
 
             # generate random samples of different resolution
-            sh = [2, 2, 1]
-            sw = [1, 2, 2]
-            generate_samples(netG, reals_shapes, m_pad, m_pad_block, noise_amp, scale_w=sw[0], scale_h=sh[0])
-            generate_samples(netG, reals_shapes, m_pad, m_pad_block, noise_amp, scale_w=sw[1], scale_h=sh[1])
-            generate_samples(netG, reals_shapes, m_pad, m_pad_block, noise_amp, scale_w=sw[2], scale_h=sh[2])
+            generate_samples(netG, reals_shapes, m_pad, m_pad_block, noise_amp,
+                             scale_w=2, scale_h=1, n=opt.num_samples)
+            generate_samples(netG, reals_shapes, m_pad, m_pad_block, noise_amp,
+                             scale_w=1, scale_h=2, n=opt.num_samples)
+            generate_samples(netG, reals_shapes, m_pad, m_pad_block, noise_amp,
+                             scale_w=2, scale_h=2, n=opt.num_samples)
+
+    elif opt.train_mode == "retargeting":
+        pass
     print("Done. Results saved at: {}".format(dir2save))
     exit()
 

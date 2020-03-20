@@ -76,6 +76,23 @@ def save_image(name, image):
     plt.imsave(name, convert_image_np(image), vmin=0, vmax=1)
 
 
+def sample_random_noise(depth, reals_shapes, opt):
+    noise = []
+    for d in range(depth + 1):
+        if d == 0:
+            noise.append(generate_noise([opt.nc_im, reals_shapes[d][2], reals_shapes[d][3]],
+                                         device=opt.device).detach())
+        else:
+            if opt.train_mode == "generation":
+                noise.append(generate_noise([opt.nfc, reals_shapes[d][2] + opt.num_layer * 2,
+                                             reals_shapes[d][3] + opt.num_layer * 2],
+                                             device=opt.device).detach())
+            else:
+                noise.append(generate_noise([opt.nfc, reals_shapes[d][2], reals_shapes[d][3]],
+                                             device=opt.device).detach())
+
+    return noise
+
 def calc_gradient_penalty(netD, real_data, fake_data, LAMBDA, device):
     MSGGan = False
     if  MSGGan:
@@ -200,6 +217,7 @@ def generate_dir2save(opt):
     training_image_name = opt.input_name[:-4].split("/")[-1]
     dir2save = 'TrainedModels/{}/'.format(training_image_name)
     dir2save += opt.timestamp
+    dir2save += "_{}".format(opt.train_mode)
     dir2save += "_train_depth_{}_lr_scale_{}".format(opt.train_depth, opt.lr_scale)
     if opt.train_mode != "generation":
         dir2save += "_train_scales_" + str(opt.train_scales)

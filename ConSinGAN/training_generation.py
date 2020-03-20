@@ -66,7 +66,7 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
     opt.nzy = real.shape[3]
 
     m_pad = nn.ZeroPad2d(1)
-    m_pad_block = nn.ZeroPad2d(2)
+    m_pad_block = nn.ZeroPad2d(2) if opt.train_mode == "generation" else nn.ZeroPad2d(3)
 
     alpha = opt.alpha
 
@@ -76,10 +76,14 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
     if depth == 0:
         z_opt = reals[0]
     else:
-        z_opt = functions.generate_noise([opt.nfc,
-                                          reals_shapes[depth][2]+opt.num_layer*2,
-                                          reals_shapes[depth][3]+opt.num_layer*2],
-                                          device=opt.device)
+        if opt.train_mode == "generation":
+            z_opt = functions.generate_noise([opt.nfc,
+                                              reals_shapes[depth][2]+opt.num_layer*2,
+                                              reals_shapes[depth][3]+opt.num_layer*2],
+                                              device=opt.device)
+        else:
+            z_opt = functions.generate_noise([opt.nfc, reals_shapes[depth][2], reals_shapes[depth][3]],
+                                              device=opt.device).detach()
     fixed_noise.append(z_opt.detach())
 
     ############################
@@ -132,17 +136,7 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
         ############################
         # (0) sample noise for unconditional generation
         ###########################
-        noise = []
-        for d in range(depth+1):
-            if d == 0:
-                noise.append(functions.generate_noise([opt.nc_im, reals_shapes[d][2], reals_shapes[d][3]],
-                                                          device=opt.device).detach())
-            else:
-                noise.append(functions.generate_noise([opt.nfc,
-                                                       reals_shapes[d][2]+opt.num_layer*2,
-                                                       reals_shapes[d][3]+opt.num_layer*2],
-                                                       device=opt.device).detach())
-
+        noise = functions.sample_random_noise(depth, reals_shapes, opt)
 
         ############################
         # (1) Update D network: maximize D(x) + D(G(z))
@@ -210,9 +204,9 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
     return fixed_noise, noise_amp, netG, netD
 
 
-def generate_samples(netG, opt, scale, m_pad, m_pad_block, noise_amp, writer, reals, iter, n=25):
+def generate_samples(netG, opt, depth, m_pad, m_pad_block, noise_amp, writer, reals, iter, n=25):
     opt.out_ = functions.generate_dir2save(opt)
-    dir2save = '{}/gen_samples_stage_{}'.format(opt.out_, scale)
+    dir2save = '{}/gen_samples_stage_{}'.format(opt.out_, depth)
     reals_shapes = [r.shape for r in reals]
     all_images = []
     try:
@@ -221,24 +215,15 @@ def generate_samples(netG, opt, scale, m_pad, m_pad_block, noise_amp, writer, re
         pass
     with torch.no_grad():
         for idx in range(n):
-            noise = []
-            for d in range(scale + 1):
-                if d == 0:
-                    noise.append(functions.generate_noise([opt.nc_im, reals_shapes[d][2], reals_shapes[d][3]],
-                                                          device=opt.device).detach())
-                else:
-                    noise.append(functions.generate_noise([opt.nfc,
-                                                           reals_shapes[d][2] + opt.num_layer * 2,
-                                                           reals_shapes[d][3] + opt.num_layer * 2],
-                                                           device=opt.device).detach())
+            noise = functions.sample_random_noise(depth, reals_shapes, opt)
             sample = netG(noise, reals_shapes, m_pad, m_pad_block, noise_amp)
             all_images.append(sample)
             functions.save_image('{}/gen_sample_{}.jpg'.format(dir2save, idx), sample.detach())
 
         all_images = torch.cat(all_images, 0)
-        all_images[0] = reals[scale].squeeze()
+        all_images[0] = reals[depth].squeeze()
         grid = make_grid(all_images, nrow=min(5, n), normalize=True)
-        writer.add_image('gen_images_{}'.format(scale), grid, iter)
+        writer.add_image('gen_images_{}'.format(depth), grid, iter)
 
 
 def init_G(opt):

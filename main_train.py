@@ -55,10 +55,8 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         torch.cuda.set_device(opt.gpu)
 
-    if opt.train_mode == "generation":
+    if opt.train_mode == "generation" or opt.train_mode == "retarget":
         from ConSinGAN.training_generation import *
-    elif opt.train_mode == "retarget":
-        from ConSinGAN.training_retarget import *
     elif opt.train_mode == "harmonization":
         if opt.fine_tune_model:
             if opt.hq:

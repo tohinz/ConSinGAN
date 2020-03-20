@@ -103,8 +103,10 @@ class GrowingGenerator(nn.Module):
                                                           real_shapes[idx][3] + self.opt.num_layer*2])
                 x_prev = block(x_prev_out_2 + noise[idx] * noise_amp[idx])
             else:
+                # print(x_prev_out.shape)
+                # print([n.shape for n in noise])
                 x_prev_out_1 = upsample(x_prev_out, size=real_shapes[idx][2:])
-                x_prev = block(m_pad_block(x_prev_out+noise[idx]*noise_amp[idx]))
+                x_prev = block(m_pad_block(x_prev_out_1+noise[idx]*noise_amp[idx]))
             x_prev_out = x_prev + x_prev_out_1
 
         out = self.tail(m_pad(x_prev_out))
