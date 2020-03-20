@@ -70,8 +70,16 @@ python evaluate_model.py --gpu 0 --model_dir TrainedModels/colusseum/.../ --num_
 This will use the model to generate `num_samples` images in the default as well as scaled resolutions.
 The results will be saved in a folder `Evaluation` in the `model_dir`.
 
-# Unconditional Generation (Arbitrary Sizes)
-todo
+### Unconditional Generation (Arbitrary Sizes)
+The default unconditional image generation is geared to also induce diversity at the edges of generated images.
+When generating images of arbitrary sizes (especially larger) this often break the image layout.
+Therefore, we also provide the option where we change the upsampling and noise addition slightly to improve results when we want to use a model to generate images of arbitrary sizes.
+The training, model architecture, loss function, etc stay the same, the only change is the addition of the random noise and a slightly different upsampling routine between the different generator stages.
+To train a model more suited for image generation of arbitrary sizes run:
+
+```
+python main_train.py --gpu 0 --train_mode retarget --input_name Images/Generation/pantheon.jpg
+```
 
 # Harmonization
 todo
