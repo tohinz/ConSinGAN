@@ -27,13 +27,14 @@ def get_scale_factor(opt):
 if __name__ == '__main__':
     parser = get_arguments()
     parser.add_argument('--input_name', help='input image name', required=True)
-    parser.add_argument('--mode', help='task to be done', default='train')
     parser.add_argument('--gpu', type=int, help='which GPU', default=0)
+    parser.add_argument('--train_mode', default='generation',
+                        choices=['generation', 'retarget', 'harmonization', 'editing'],
+                        help="generation, retarget, harmonization, editing")
+    parser.add_argument('--lr_scale', type=float, help='scaling of learning rate for layers if growing', default=0.1)
     parser.add_argument('--train_stages', type=int, help='which GPU', default=6)
 
-    parser.add_argument('--sample', action='store_true', help='generate random samples', default=0)
-    parser.add_argument('--train_depth', type=int, help='how many layers are trained if growing', default=3)
-    parser.add_argument('--lr_scale', type=float, help='scaling of learning rate for layers if growing', default=0.1)
+
     parser.add_argument('--start_scale', type=int, help='at which scale to start training', default=0)
     parser.add_argument('--train_scales', type=int, help='at which scale to start training', default=3)
     parser.add_argument('--harmonization_img', help='for harmonization', type=str, default='')
@@ -46,7 +47,6 @@ if __name__ == '__main__':
     parser.add_argument('--num_training_scales', type=int, help='how many scales to train on', default=0)
     parser.add_argument('--edit_add_noise', action='store_true', help='fine tune on high res image', default=0)
 
-    parser.add_argument('--batch_norm', action='store_true', help='"use batch norm in generator"', default=0)
 
 
     opt = parser.parse_args()
