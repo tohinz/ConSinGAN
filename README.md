@@ -78,8 +78,10 @@ The training, model architecture, loss function, etc stay the same, the only cha
 To train a model more suited for image generation of arbitrary sizes run:
 
 ```
-python main_train.py --gpu 0 --train_mode retarget --input_name Images/Generation/pantheon.jpg
+python main_train.py --gpu 0 --train_mode retarget --input_name Images/Generation/colusseum.jpg
 ```
+
+![Retargeting Visualization](Examples/retarget_vis.jpg)
 
 # Harmonization
 todo
