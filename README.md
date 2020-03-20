@@ -85,10 +85,16 @@ python main_train.py --gpu 0 --train_mode retarget --input_name Images/Generatio
 ![Retargeting Visualization](Examples/retarget_vis.jpg)
 
 # Harmonization
-
+To train a default harmonization model that does not see anything besides the training image at train time:
 
 ```
 python main_train.py --gpu 0 --train_mode harmonization --train_stages 3 --min_size 120 --lrelu_alpha 0.3 --niter 1000 --batch_norm --input_name Images/Harmonization/oil_building.jpg
+```
+
+If you already have a naive image that you want to use to monitor the progress use:
+
+```
+python main_train.py --gpu 0 --train_mode harmonization --train_stages 3 --min_size 120 --lrelu_alpha 0.3 --niter 1000 --batch_norm --input_name Images/Harmonization/street.jpg --naive_img Images/Harmonization/street_naive.jpg
 ```
 
 # Editing
