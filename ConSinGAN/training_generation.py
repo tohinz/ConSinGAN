@@ -65,9 +65,6 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
     opt.nzx = real.shape[2]
     opt.nzy = real.shape[3]
 
-    m_pad = nn.ZeroPad2d(1)
-    m_pad_block = nn.ZeroPad2d(2) if opt.train_mode == "generation" else nn.ZeroPad2d(3)
-
     alpha = opt.alpha
 
     ############################
@@ -119,7 +116,7 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
         noise_amp.append(1)
     else:
         noise_amp.append(0)
-        z_reconstruction = netG(fixed_noise, reals_shapes, m_pad, m_pad_block, noise_amp)
+        z_reconstruction = netG(fixed_noise, reals_shapes, noise_amp)
 
         criterion = nn.MSELoss()
         rec_loss = criterion(z_reconstruction, real)
@@ -131,7 +128,7 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
     # start training
     _iter = tqdm(range(opt.niter))
     for iter in _iter:
-        _iter.set_description('stage [%d/%d]:[%d/%d]' % (depth, opt.stop_scale, iter+1, opt.niter))
+        _iter.set_description('stage [{}/{}]:'.format(depth, opt.stop_scale))
 
         ############################
         # (0) sample noise for unconditional generation
@@ -149,10 +146,10 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
 
             # train with fake
             if j == opt.Dsteps - 1:
-                fake = netG(noise, reals_shapes, m_pad, m_pad_block, noise_amp)
+                fake = netG(noise, reals_shapes, noise_amp)
             else:
                 with torch.no_grad():
-                    fake = netG(noise, reals_shapes, m_pad, m_pad_block, noise_amp)
+                    fake = netG(noise, reals_shapes, noise_amp)
 
             output = netD(fake.detach())
             errD_fake = output.mean()
@@ -170,7 +167,7 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
 
         if alpha != 0:
             loss = nn.MSELoss()
-            rec = netG(fixed_noise, reals_shapes, m_pad, m_pad_block, noise_amp)
+            rec = netG(fixed_noise, reals_shapes, noise_amp)
             rec_loss = alpha * loss(rec, real)
         else:
             rec_loss = 0
@@ -194,7 +191,7 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
         if iter % 500 == 0 or iter+1 == opt.niter:
             functions.save_image('{}/fake_sample_{}.jpg'.format(opt.outf, iter+1), fake.detach())
             functions.save_image('{}/reconstruction_{}.jpg'.format(opt.outf, iter+1), rec.detach())
-            generate_samples(netG, opt, depth, m_pad, m_pad_block, noise_amp, writer, reals, iter+1)
+            generate_samples(netG, opt, depth, noise_amp, writer, reals, iter+1)
 
         schedulerD.step()
         schedulerG.step()
@@ -204,7 +201,7 @@ def train_single_scale(netD, netG, reals, fixed_noise, noise_amp, opt, depth, wr
     return fixed_noise, noise_amp, netG, netD
 
 
-def generate_samples(netG, opt, depth, m_pad, m_pad_block, noise_amp, writer, reals, iter, n=25):
+def generate_samples(netG, opt, depth, noise_amp, writer, reals, iter, n=25):
     opt.out_ = functions.generate_dir2save(opt)
     dir2save = '{}/gen_samples_stage_{}'.format(opt.out_, depth)
     reals_shapes = [r.shape for r in reals]
@@ -216,7 +213,7 @@ def generate_samples(netG, opt, depth, m_pad, m_pad_block, noise_amp, writer, re
     with torch.no_grad():
         for idx in range(n):
             noise = functions.sample_random_noise(depth, reals_shapes, opt)
-            sample = netG(noise, reals_shapes, m_pad, m_pad_block, noise_amp)
+            sample = netG(noise, reals_shapes, noise_amp)
             all_images.append(sample)
             functions.save_image('{}/gen_sample_{}.jpg'.format(dir2save, idx), sample.detach())
 

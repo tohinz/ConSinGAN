@@ -69,6 +69,10 @@ class GrowingGenerator(nn.Module):
         self.opt = opt
         N = int(opt.nfc)
 
+        self._pad = nn.ZeroPad2d(1)
+        self._pad_block = nn.ZeroPad2d(opt.num_layer-1) if opt.train_mode == "generation" \
+                                                        else nn.ZeroPad2d(opt.num_layer)
+
         self.head = ConvBlock(opt.nc_im, N, opt.ker_size, opt.padd_size, opt, generator=True)
 
         self.body = torch.nn.ModuleList([])
@@ -85,29 +89,26 @@ class GrowingGenerator(nn.Module):
     def init_next_stage(self):
         self.body.append(copy.deepcopy(self.body[-1]))
 
-    def forward(self, noise, real_shapes, m_pad, m_pad_block, noise_amp):
-        x = self.head(m_pad(noise[0]))
+    def forward(self, noise, real_shapes, noise_amp):
+        x = self.head(self._pad(noise[0]))
 
         # we do some upsampling for training models for unconditional generation to increase
         # the image diversity at the edges of generated images
         if self.opt.train_mode == "generation":
             x = upsample(x, size=[x.shape[2] + 2, x.shape[3] + 2])
-        x = m_pad_block(x)
+        x = self._pad_block(x)
         x_prev_out = self.body[0](x)
 
-        for idx, block in enumerate(self.body[1:]):
-            idx += 1
+        for idx, block in enumerate(self.body[1:], 1):
             if self.opt.train_mode == "generation":
                 x_prev_out_1 = upsample(x_prev_out, size=[real_shapes[idx][2], real_shapes[idx][3]])
                 x_prev_out_2 = upsample(x_prev_out, size=[real_shapes[idx][2] + self.opt.num_layer*2,
                                                           real_shapes[idx][3] + self.opt.num_layer*2])
                 x_prev = block(x_prev_out_2 + noise[idx] * noise_amp[idx])
             else:
-                # print(x_prev_out.shape)
-                # print([n.shape for n in noise])
                 x_prev_out_1 = upsample(x_prev_out, size=real_shapes[idx][2:])
-                x_prev = block(m_pad_block(x_prev_out_1+noise[idx]*noise_amp[idx]))
+                x_prev = block(self._pad_block(x_prev_out_1+noise[idx]*noise_amp[idx]))
             x_prev_out = x_prev + x_prev_out_1
 
-        out = self.tail(m_pad(x_prev_out))
+        out = self.tail(self._pad(x_prev_out))
         return out

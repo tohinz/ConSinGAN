@@ -219,8 +219,6 @@ def generate_dir2save(opt):
     dir2save += opt.timestamp
     dir2save += "_{}".format(opt.train_mode)
     dir2save += "_train_depth_{}_lr_scale_{}".format(opt.train_depth, opt.lr_scale)
-    if opt.train_mode != "generation":
-        dir2save += "_train_scales_" + str(opt.train_scales)
     if opt.batch_norm == 1:
         dir2save += "_BN"
     dir2save += "_act_" + opt.activation
