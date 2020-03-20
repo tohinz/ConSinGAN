@@ -57,11 +57,14 @@ To monitor the progress go to the respective folder and run
  tensorboard --logdir .
 ```
 
-to sample:
+To sample more images from a trained model run:
 
 ```
-todo
+python evaluate_model.py --gpu 0 --model_dir TrainedModels/colusseum/.../ --num_samples 50
 ```
+
+This will use the model to generate `num_samples` images in the default as well as scaled resolutions.
+The results will be saved in a folder `Evaluation` in the `model_dir`.
 
 # Unconditional Generation (Arbitrary Sizes)
 todo
