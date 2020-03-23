@@ -26,12 +26,9 @@ def train(opt):
     print("")
 
     if opt.naive_img != "":
-        _input_name = opt.input_name
-        opt.input_name = opt.naive_img
-        naive_img = functions.read_image(opt)
+        naive_img = functions.read_image_dir(opt.naive_img, opt)
         naive_img = imresize_to_shape(naive_img, reals[0].shape[2:], opt)
         naive_img = functions.convert_image_np(naive_img)*255.0
-        opt.input_name = _input_name
     else:
         naive_img = None
 
@@ -228,11 +225,10 @@ def train_single_scale(netD, netG, reals, img_to_augment, naive_img, fixed_noise
             writer.add_scalar('Loss/train/D/gradient_penalty/{}'.format(j), gradient_penalty.item(), iter + 1)
             writer.add_scalar('Loss/train/G/gen', errG.item(), iter + 1)
             writer.add_scalar('Loss/train/G/reconstruction', rec_loss.item(), iter + 1)
-        if iter % 500 == 0 or iter + 1 == opt.niter:
             functions.save_image('{}/fake_sample_{}.jpg'.format(opt.outf, iter + 1), fake.detach())
             functions.save_image('{}/reconstruction_{}.jpg'.format(opt.outf, iter + 1), rec.detach())
             generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp, writer, reals, iter + 1)
-        elif iter % 100 == 0 and opt.fine_tune:
+        elif opt.fine_tune and iter % 100 == 0:
             generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp, writer, reals, iter + 1)
 
         schedulerD.step()
@@ -285,7 +281,7 @@ def generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp
             if os.path.exists(mask_file_name):
                 mask = get_mask(mask_file_name, augmented_image, opt)
                 sample_w_mask = (1 - mask) * augmented_image + mask * sample.detach()
-
+                functions.save_image('{}/harmonized_sample_w_mask_{}.jpg'.format(dir2save, iter), sample_w_mask.detach())
                 images = torch.cat([augmented_image, sample.detach(), sample_w_mask], 0)
                 grid = make_grid(images, nrow=3, normalize=True)
                 writer.add_image('harmonized_images_{}'.format(depth), grid, iter)
@@ -295,6 +291,7 @@ def generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp
                 images = torch.cat([augmented_image, sample.detach()], 0)
                 grid = make_grid(images, nrow=2, normalize=True)
                 writer.add_image('harmonized_images_{}'.format(depth), grid, iter)
+            functions.save_image('{}/harmonized_sample_{}.jpg'.format(dir2save, iter), sample.detach())
         else:
             if naive_img is not None:
                 noise = []
@@ -308,12 +305,13 @@ def generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp
                 _naive_img = imresize_to_shape(functions.np2torch(naive_img, opt), sample.shape[2:], opt)
                 images.insert(0, sample.detach())
                 images.insert(0, _naive_img)
+                functions.save_image('{}/harmonized_sample_{}.jpg'.format(dir2save, iter), sample.detach())
 
                 mask_file_name = '{}_mask{}'.format(opt.naive_img[:-4], opt.naive_img[-4:])
                 if os.path.exists(mask_file_name):
-                    mask = get_mask(mask_file_name, augmented_image, opt)
-                    sample_w_mask = (1 - mask) * augmented_image + mask * sample.detach()
-                    functions.save_image('{}/{}_harmonized_sample_w_mask.jpg'.format(dir2save, iter), sample_w_mask)
+                    mask = get_mask(mask_file_name, _naive_img, opt)
+                    sample_w_mask = (1 - mask) * _naive_img + mask * sample.detach()
+                    functions.save_image('{}/harmonized_sample_w_mask_{}.jpg'.format(dir2save, iter), sample_w_mask)
 
             images = torch.cat(images, 0)
             grid = make_grid(images, nrow=4, normalize=True)

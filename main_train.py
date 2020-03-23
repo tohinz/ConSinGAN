@@ -27,7 +27,7 @@ def get_scale_factor(opt):
 if __name__ == '__main__':
     parser = get_arguments()
     parser.add_argument('--input_name', help='input image name for training', required=True)
-    parser.add_argument('--naive_img', help='naive input image  (harmonization or editing)')
+    parser.add_argument('--naive_img', help='naive input image  (harmonization or editing)', default="")
     parser.add_argument('--gpu', type=int, help='which GPU to use', default=0)
     parser.add_argument('--train_mode', default='generation',
                         choices=['generation', 'retarget', 'harmonization', 'editing'],
@@ -79,6 +79,9 @@ if __name__ == '__main__':
                     print("Model does not exist: {}".format(opt.model_dir))
                     print("Please specify a valid model.")
                     exit()
+            if not os.path.exists(opt.naive_img):
+                print("Image for harmonization not found: {}".format(opt.naive_img))
+                exit()
         from ConSinGAN.training_harmonization import *
     elif opt.train_mode == "editing":
         if opt.fine_tune_model:
