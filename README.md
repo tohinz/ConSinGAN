@@ -135,6 +135,12 @@ To fine-tune a model:
 python main_train.py --gpu 0 --input_name Images/Editing/stone.png --naive_img Images/Editing/stone_edit_1.png --fine_tune --model_dir TrainedModels/stone/...
 ```
 
+To evaluate:
+
+```
+python evaluate_model.py --gpu 0 --model_dir TrainedModels/stone/.../ --naive_img Images/Harmonization/stone_edit_1.png
+```
+
 ![Editing Visualization](Examples/editing_vis.jpg)
 
 # Additional Data
