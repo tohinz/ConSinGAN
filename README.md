@@ -97,6 +97,12 @@ If you already have a naive image that you want to use to monitor the progress u
 python main_train.py --gpu 0 --train_mode harmonization --train_stages 3 --min_size 120 --lrelu_alpha 0.3 --niter 1000 --batch_norm --input_name Images/Harmonization/pencil_tree.jpg --naive_img Images/Harmonization/pencil_tree_naive.jpg
 ```
 
+To fine tune a pretrained model on a given image:
+
+```
+python main_train.py --gpu 0 --train_mode harmonization --niter 500 --input_name Images/Harmonization/pencil_tree.jpg --naive_img Images/Harmonization/pencil_tree_naive.jpg --fine_tune --model_dir TrainedModels/...
+```
+
 # Editing
 todo
 
