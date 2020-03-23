@@ -120,6 +120,13 @@ Training a model for fine-tuning should take 1-5 minutes, depending on the model
 Training for the editing task is the same as for the harmonization task, except that we do it on more stages and with a slightly different image augmentation technique where we swap random patches within the training image at each iteration.
 
 ```
+python main_train.py --gpu 0 --train_mode editing --batch_norm --niter 1000 --input_name Images/Editing/stone.png
+
+```
+
+or, if an naive image should be used for monitoring training progress (but not for training itself):
+
+```
 python main_train.py --gpu 0 --train_mode editing --batch_norm --niter 1000 --input_name Images/Editing/stone.png --naive_img Images/Editing/stone_edit_1.png
 ```
 
