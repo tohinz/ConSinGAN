@@ -96,7 +96,7 @@ Training should take about 5-10 minutes for three stages. Reducing `--min_size` 
 To harmonize a given image with a pre-trained model:
 
 ```
-python evaluate_model.py --gpu 0 --model_dir TrainedModels/scream/.../ --naive_img Images/Harmonization/scream_naive.jpg
+python evaluate_model.py --gpu 0 --train_mode harmonization --model_dir TrainedModels/scream/.../ --naive_img Images/Harmonization/scream_naive.jpg
 ```
 
 If you already have a naive image that you want to use to monitor the progress (naive image only used at test time, not at train time):
