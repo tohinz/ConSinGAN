@@ -1,17 +1,12 @@
-
 import os
 import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid
-import torchvision.transforms as transforms
-import math
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
 from tqdm import tqdm
-import random
 
 from ConSinGAN.imresize import imresize, imresize_to_shape
 import ConSinGAN.functions as functions
@@ -46,10 +41,17 @@ def train(opt):
         img_to_augment = functions.convert_image_np(reals[0])*255.0
 
     generator = init_G(opt)
+    if opt.fine_tune:
+        for _ in range(opt.train_stages-1):
+            generator.init_next_stage()
+        generator.load_state_dict(torch.load('{}/{}/netG.pth'.format(opt.model_dir, opt.train_stages-1),
+                                             map_location="cuda:{}".format(torch.cuda.current_device())))
+
+
     fixed_noise = []
     noise_amp = []
 
-    for scale_num in range(opt.stop_scale+1):
+    for scale_num in range(opt.start_scale, opt.train_stages):
         opt.out_ = functions.generate_dir2save(opt)
         opt.outf = '%s/%d' % (opt.out_,scale_num)
         try:
@@ -60,7 +62,10 @@ def train(opt):
         functions.save_image('{}/real_scale.jpg'.format(opt.outf), reals[scale_num])
 
         d_curr = init_D(opt)
-        if scale_num > 0:
+        if opt.fine_tune:
+            d_curr.load_state_dict(torch.load('{}/{}/netD.pth'.format(opt.model_dir, opt.train_stages-1),
+                                              map_location="cuda:{}".format(torch.cuda.current_device())))
+        elif scale_num > 0:
             d_curr.load_state_dict(torch.load('%s/%d/netD.pth' % (opt.out_, scale_num - 1)))
             generator.init_next_stage()
 
@@ -89,12 +94,17 @@ def train_single_scale(netD, netG, reals, img_to_augment, naive_img, fixed_noise
     ############################
     # define z_opt for training on reconstruction
     ###########################
-    if depth == 0:
-        z_opt = reals[0]
+    if opt.fine_tune:
+        fixed_noise = torch.load('%s/fixed_noise.pth' % opt.model_dir,
+                                 map_location="cuda:{}".format(torch.cuda.current_device()))
+        z_opt = fixed_noise[depth]
     else:
-        z_opt = functions.generate_noise([opt.nfc, reals_shapes[depth][2], reals_shapes[depth][3]],
-                                         device=opt.device)
-    fixed_noise.append(z_opt.detach())
+        if depth == 0:
+            z_opt = reals[0]
+        else:
+            z_opt = functions.generate_noise([opt.nfc, reals_shapes[depth][2], reals_shapes[depth][3]],
+                                             device=opt.device)
+        fixed_noise.append(z_opt.detach())
 
     ############################
     # define optimizers, learning rate schedulers, and learning rates for lower stages
@@ -126,23 +136,27 @@ def train_single_scale(netD, netG, reals, img_to_augment, naive_img, fixed_noise
     ############################
     # calculate noise_amp
     ###########################
-    if depth == 0:
-        noise_amp.append(1)
+    if opt.fine_tune:
+        noise_amp = torch.load('%s/noise_amp.pth' % opt.model_dir,
+                               map_location="cuda:{}".format(torch.cuda.current_device()))
     else:
-        noise_amp.append(0)
-        z_reconstruction = netG(fixed_noise, reals_shapes, noise_amp)
+        if depth == 0:
+            noise_amp.append(1)
+        else:
+            noise_amp.append(0)
+            z_reconstruction = netG(fixed_noise, reals_shapes, noise_amp)
 
-        criterion = nn.MSELoss()
-        rec_loss = criterion(z_reconstruction, real)
+            criterion = nn.MSELoss()
+            rec_loss = criterion(z_reconstruction, real)
 
-        RMSE = torch.sqrt(rec_loss).detach()
-        _noise_amp = opt.noise_amp_init * RMSE
-        noise_amp[-1] = _noise_amp
+            RMSE = torch.sqrt(rec_loss).detach()
+            _noise_amp = opt.noise_amp_init * RMSE
+            noise_amp[-1] = _noise_amp
 
     # start training
     _iter = tqdm(range(opt.niter))
     for iter in _iter:
-        _iter.set_description('scale %d:[%d/%d]' % (depth, iter+1, opt.niter))
+        _iter.set_description('stage [{}/{}]:'.format(depth, opt.stop_scale))
 
         ############################
         # (0) sample augmented training image
@@ -151,7 +165,7 @@ def train_single_scale(netD, netG, reals, img_to_augment, naive_img, fixed_noise
         for d in range(depth + 1):
             if d == 0:
                 if opt.fine_tune:
-                    noise.append(reals_add[0])
+                    noise.append(functions.np2torch(naive_img, opt))
                 else:
                     data = {"image": img_to_augment}
                     augmented = aug.transform(**data)
@@ -218,6 +232,8 @@ def train_single_scale(netD, netG, reals, img_to_augment, naive_img, fixed_noise
             functions.save_image('{}/fake_sample_{}.jpg'.format(opt.outf, iter + 1), fake.detach())
             functions.save_image('{}/reconstruction_{}.jpg'.format(opt.outf, iter + 1), rec.detach())
             generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp, writer, reals, iter + 1)
+        elif iter % 100 == 0 and opt.fine_tune:
+            generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp, writer, reals, iter + 1)
 
         schedulerD.step()
         schedulerG.step()
@@ -239,13 +255,16 @@ def generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp
 
     if naive_img is not None:
         n = n-1
+    if opt.fine_tune:
+        n = 1
     with torch.no_grad():
         for idx in range(n):
             noise = []
             for d in range(depth + 1):
                 if d == 0:
                     if opt.fine_tune:
-                        noise.append(reals_add[0])
+                        augmented_image = functions.np2torch(naive_img, opt)
+                        noise.append(augmented_image)
                     else:
                         data = {"image": img_to_augment}
                         augmented = aug.transform(**data)
@@ -262,37 +281,20 @@ def generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp
             images.append(sample.detach())
 
         if opt.fine_tune:
-            _input_dir, _input_name = opt.input_dir, opt.input_name
-            _mode = opt.mode
-            opt.input_dir, opt.input_name = "Input/Harmonization", opt.harmonization_img
+            mask_file_name = '{}_mask{}'.format(opt.naive_img[:-4], opt.naive_img[-4:])
+            if os.path.exists(mask_file_name):
+                mask = get_mask(mask_file_name, augmented_image, opt)
+                sample_w_mask = (1 - mask) * augmented_image + mask * sample.detach()
 
-            harmonized_img_original_size = functions.read_image(opt)
-            harmonized_img_original = imresize_to_shape(harmonized_img_original_size, Zs[-1].shape[2:], opt)
-            harmonized_img_original_resized = imresize_to_shape(harmonized_img_original_size, Zs[0].shape[2:], opt)
-            Zs_harmonization = [z for z in Zs]
-            Zs_harmonization[0] = harmonized_img_original_resized
-            harmonized_img = netG(Zs_harmonization, scale, reals_shapes, m_pad, m_pad_block, NoiseAmp)
-
-            opt.mode = "harmonization"
-            opt.ref_dir = opt.input_dir
-            opt.ref_name = opt.input_name
-            mask = functions.read_image_dir('%s/%s_mask%s' % (opt.input_dir, opt.input_name[:-4], opt.input_name[-4:]), opt)
-            if mask.shape[3] != original_img.shape[3]:
-                mask = imresize_to_shape(mask, [original_img.shape[2], original_img.shape[3]], opt)
-                mask = mask[:, :, :original_img.shape[2], :original_img.shape[3]]
-            mask = functions.dilate_mask(mask, opt)
-            harmonized_img_w_mask = (1 - mask) * original_img + mask * harmonized_img
-
-            harmonize_imgs = torch.cat([original_img, reconstruction_img, harmonized_img_original, harmonized_img, harmonized_img_w_mask], 0)
-            grid_2 = make_grid(harmonize_imgs, nrow=5, normalize=True)
-            writer.add_image('rec_harmon_harmon_w_mask_{}'.format(scale), grid_2, 0)
-
-            if epoch is not None:
-                plt.imsave('{}/harmonized_img_w_mask_{}.png'.format(opt.outf, epoch), functions.convert_image_np(harmonized_img_w_mask.detach(), opt),
-                           vmin=0, vmax=1)
-
-            opt.input_dir, opt.input_name = _input_dir, _input_name
-            opt.mode = _mode
+                images = torch.cat([augmented_image, sample.detach(), sample_w_mask], 0)
+                grid = make_grid(images, nrow=3, normalize=True)
+                writer.add_image('harmonized_images_{}'.format(depth), grid, iter)
+            else:
+                print("Warning: no mask with name {} exists for image {}".format(mask_file_name, opt.input_name))
+                print("Only showing results without mask.")
+                images = torch.cat([augmented_image, sample.detach()], 0)
+                grid = make_grid(images, nrow=2, normalize=True)
+                writer.add_image('harmonized_images_{}'.format(depth), grid, iter)
         else:
             if naive_img is not None:
                 noise = []
@@ -303,18 +305,28 @@ def generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp
                         noise.append(functions.generate_noise([opt.nfc, reals_shapes[d][2], reals_shapes[d][3]],
                                                               device=opt.device).detach())
                 sample = netG(noise, reals_shapes, noise_amp)
-                sample = add_mask(sample, opt)
                 _naive_img = imresize_to_shape(functions.np2torch(naive_img, opt), sample.shape[2:], opt)
                 images.insert(0, sample.detach())
                 images.insert(0, _naive_img)
+
+                mask_file_name = '{}_mask{}'.format(opt.naive_img[:-4], opt.naive_img[-4:])
+                if os.path.exists(mask_file_name):
+                    mask = get_mask(mask_file_name, augmented_image, opt)
+                    sample_w_mask = (1 - mask) * augmented_image + mask * sample.detach()
+                    functions.save_image('{}/{}_harmonized_sample_w_mask.jpg'.format(dir2save, iter), sample_w_mask)
 
             images = torch.cat(images, 0)
             grid = make_grid(images, nrow=4, normalize=True)
             writer.add_image('harmonized_images_{}'.format(depth), grid, iter)
 
 
-def add_mask(img, opt):
-    return img
+def get_mask(mask_file_name, real_img, opt):
+    opt.mode = "harmonization"
+    mask = functions.read_image_dir(mask_file_name, opt)
+    if mask.shape[3] != real_img.shape[3]:
+        mask = imresize_to_shape(mask, [real_img.shape[2], real_img.shape[3]], opt)
+    mask = functions.dilate_mask(mask, opt)
+    return mask
 
 def init_G(opt):
     # generator initialization:

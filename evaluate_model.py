@@ -45,23 +45,7 @@ if __name__ == '__main__':
 
     opt = parser.parse_args()
     _gpu = opt.gpu
-
-    if not os.path.exists(opt.model_dir):
-        print("Model not found: {}".format(opt.model_dir))
-        exit()
-
-    with open(os.path.join(opt.model_dir, 'parameters.txt'), 'r') as f:
-        params = f.readlines()
-        for param in params:
-            param = param.split("-")
-            param = [p.strip() for p in param]
-            param_name = param[0]
-            param_value = param[1]
-            try:
-                param_value = int(param_value)
-            except:
-                ValueError
-            setattr(opt, param_name, param_value)
+    opt = functions.load_config(opt)
     opt.gpu = _gpu
 
     if torch.cuda.is_available():

@@ -7,20 +7,19 @@ def get_arguments():
     parser.add_argument('--not_cuda', action='store_true', help='disables cuda', default=0)
     parser.add_argument('--manualSeed', type=int, help='manual seed')
 
-        
-    #networks hyper parameters:
-    parser.add_argument('--nfc', type=int, default=64)
+    #stage hyper parameters:
+    parser.add_argument('--nfc', type=int,help='number of filters per conv layer', default=64)
     parser.add_argument('--ker_size',type=int,help='kernel size',default=3)
-    parser.add_argument('--num_layer',type=int,help='number of layers',default=3)
+    parser.add_argument('--num_layer',type=int,help='number of layers per stage',default=3)
     parser.add_argument('--padd_size',type=int,help='net pad size',default=0)
         
     #pyramid parameters:
     parser.add_argument('--nc_im',type=int,help='image # channels',default=3)
-    parser.add_argument('--scale_factor',type=float,help='pyramid scale factor',default=0.75)
     parser.add_argument('--noise_amp',type=float,help='additive noise cont weight',default=0.1)
     parser.add_argument('--min_size',type=int,help='image minimal size at the coarser scale',default=25)
     parser.add_argument('--max_size', type=int,help='image minimal size at the coarser scale', default=250)
     parser.add_argument('--train_depth', type=int, help='how many layers are trained if growing', default=3)
+    parser.add_argument('--start_scale', type=int, help='at which stage to start training', default=0)
 
     #optimization hyper parameters:
     parser.add_argument('--niter', type=int, default=2000, help='number of epochs to train per scale')
@@ -36,5 +35,4 @@ def get_arguments():
     parser.add_argument('--lrelu_alpha', type=float, help='alpha for leaky relu', default=0.05)
     parser.add_argument('--batch_norm', action='store_true', help='"use batch norm in generator"', default=0)
 
-    
     return parser

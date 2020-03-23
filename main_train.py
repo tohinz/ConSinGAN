@@ -26,32 +26,42 @@ def get_scale_factor(opt):
 # noinspection PyInterpreter
 if __name__ == '__main__':
     parser = get_arguments()
-    parser.add_argument('--input_name', help='input image name', required=True)
-    parser.add_argument('--naive_img', help='naive input image for harmonization or editing')
-    parser.add_argument('--gpu', type=int, help='which GPU', default=0)
+    parser.add_argument('--input_name', help='input image name for training', required=True)
+    parser.add_argument('--naive_img', help='naive input image  (harmonization or editing)')
+    parser.add_argument('--gpu', type=int, help='which GPU to use', default=0)
     parser.add_argument('--train_mode', default='generation',
                         choices=['generation', 'retarget', 'harmonization', 'editing'],
                         help="generation, retarget, harmonization, editing")
-    parser.add_argument('--lr_scale', type=float, help='scaling of learning rate for layers if growing', default=0.1)
-    parser.add_argument('--train_stages', type=int, help='which GPU', default=6)
+    parser.add_argument('--lr_scale', type=float, help='scaling of learning rate for lower stages', default=0.1)
+    parser.add_argument('--train_stages', type=int, help='how many stages to use for training', default=6)
 
-
-    parser.add_argument('--start_scale', type=int, help='at which scale to start training', default=0)
-    parser.add_argument('--train_scales', type=int, help='at which scale to start training', default=3)
-    parser.add_argument('--harmonization_img', help='for harmonization', type=str, default='')
-    parser.add_argument('--add_img', action='store_true', help='use augmented img for adversarial loss', default=0)
-    parser.add_argument('--fine_tune', action='store_true', help='fine tune on final image', default=0)
-    parser.add_argument('--fine_tune_model', action='store_true', help='fine tune on final image', default=0)
-    parser.add_argument('--model_finetune_dir', help='input image name', required=False)
-    parser.add_argument('--hq', action='store_true', help='fine tune on high res image', default=0)
-    parser.add_argument('--add_mask', action='store_true', help='fine tune on high res image', default=0)
-    parser.add_argument('--num_training_scales', type=int, help='how many scales to train on', default=0)
-    parser.add_argument('--edit_add_noise', action='store_true', help='fine tune on high res image', default=0)
-
-
+    parser.add_argument('--fine_tune', action='store_true', help='whether to fine tune on a given image', default=0)
+    parser.add_argument('--model_dir', help='model to be used for fine tuning (harmonization or editing)', default="")
 
     opt = parser.parse_args()
     opt = functions.post_config(opt)
+
+    if opt.fine_tune:
+        _gpu = opt.gpu
+        _model_dir = opt.model_dir
+        _timestamp = opt.timestamp
+        _naive_img = opt.naive_img
+        _niter = opt.niter
+
+        opt = functions.load_config(opt)
+
+        opt.gpu = _gpu
+        opt.model_dir = _model_dir
+        opt.start_scale = opt.train_stages - 1
+        opt.timestamp = _timestamp
+        opt.fine_tune = True
+        opt.naive_img = _naive_img
+        opt.niter = _niter
+
+    if not os.path.exists(opt.input_name):
+        print("Image does not exist: {}".format(opt.input_name))
+        print("Please specify a valid image.")
+        exit()
 
     if torch.cuda.is_available():
         torch.cuda.set_device(opt.gpu)
@@ -59,13 +69,17 @@ if __name__ == '__main__':
     if opt.train_mode == "generation" or opt.train_mode == "retarget":
         from ConSinGAN.training_generation import *
     elif opt.train_mode == "harmonization":
-        if opt.fine_tune_model:
-            if opt.hq:
-                from ConSinGAN.training_harmonization_finetune_model_highres import *
+        if opt.fine_tune:
+            if opt.model_dir == "":
+                print("Model for fine tuning not specified.")
+                print("Please use --model_dir to define model location.")
+                exit()
             else:
-                from ConSinGAN.training_harmonization_finetune_model import *
-        else:
-            from ConSinGAN.training_harmonization import *
+                if not os.path.exists(opt.model_dir):
+                    print("Model does not exist: {}".format(opt.model_dir))
+                    print("Please specify a valid model.")
+                    exit()
+        from ConSinGAN.training_harmonization import *
     elif opt.train_mode == "editing":
         if opt.fine_tune_model:
             from ConSinGAN.training_editing_finetune_model import *
