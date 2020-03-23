@@ -105,8 +105,6 @@ If you already have a naive image that you want to use to monitor the progress (
 python main_train.py --gpu 0 --train_mode harmonization --train_stages 3 --min_size 120 --lrelu_alpha 0.3 --niter 1000 --batch_norm --input_name Images/Harmonization/pencil_tree.jpg --naive_img Images/Harmonization/pencil_tree_naive.jpg
 ```
 
-![Harmonization Visualization](Examples/harmonization_vis.jpg)
-
 To fine-tune a pre-trained model on a given image (naive image also used at train time):
 
 ```
@@ -115,6 +113,7 @@ python main_train.py --gpu 0 --train_mode harmonization --input_name Images/Harm
 
 Training a model for fine-tuning should take 1-5 minutes, depending on the model and image size.
 
+![Harmonization Visualization](Examples/harmonization_vis.jpg)
 
 # Editing
 Training for the editing task is the same as for the harmonization task, except that we do it on more stages and with a slightly different image augmentation technique where we swap random patches within the training image at each iteration.
