@@ -119,7 +119,7 @@ Training a model for fine-tuning should take 1-5 minutes, depending on the model
 # Editing
 
 ```
-python main_train.py --gpu 0 --train_mode editing --input_name Images/Editing/stone.png --naive_img Images/Editing/stone_edit_1.png
+python main_train.py --gpu 0 --train_mode editing --batch_norm --niter 1000 --input_name Images/Editing/stone.png --naive_img Images/Editing/stone_edit_1.png
 ```
 
 # Additional Data
