@@ -137,4 +137,7 @@ python main_train.py --gpu 0 --input_name Images/Editing/stone.png --naive_img I
 ```
 
 # Additional Data
-todo upload images of user studies and training images for user studies
+The folder `User-Studies` contains the raw images we used to conduct our user study.
+
+# Acknowledgements
+Our implementationis based on this! [implementation](https://github.com/tamarott/SinGAN) of the ![SinGAN paper](https://arxiv.org/abs/1905.01164).
