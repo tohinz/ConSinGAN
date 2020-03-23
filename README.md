@@ -91,6 +91,8 @@ To train a default harmonization model that does not use anything besides the tr
 python main_train.py --gpu 0 --train_mode harmonization --train_stages 3 --min_size 120 --lrelu_alpha 0.3 --niter 1000 --batch_norm --input_name Images/Harmonization/scream.jpg
 ```
 
+Training should take about 5-10 minutes for three stages. Reducing `--min_size` will speed up the training, increasing it may lead to better results.
+
 To harmonize a given image with a pre-trained model:
 
 ```
@@ -109,6 +111,7 @@ To fine-tune a pre-trained model on a given image (naive image also used at trai
 python main_train.py --gpu 0 --train_mode harmonization --input_name Images/Harmonization/pencil_tree.jpg --naive_img Images/Harmonization/pencil_tree_naive.jpg --fine_tune --model_dir TrainedModels/pencil_tree/...
 ```
 
+Training a model for fine-tuning should take 1-5 minutes, depending on the model and image size.
 
 
 # Editing
