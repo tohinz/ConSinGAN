@@ -27,6 +27,7 @@ def train(opt):
 
     if opt.naive_img != "":
         naive_img = functions.read_image_dir(opt.naive_img, opt)
+        naive_img_large = imresize_to_shape(naive_img, reals[-1].shape[2:], opt)
         naive_img = imresize_to_shape(naive_img, reals[0].shape[2:], opt)
         naive_img = functions.convert_image_np(naive_img)*255.0
     else:
@@ -36,6 +37,9 @@ def train(opt):
         img_to_augment = naive_img
     else:
         img_to_augment = functions.convert_image_np(reals[0])*255.0
+
+    if opt.train_mode == "editing":
+        opt.noise_scaling = 0.1
 
     generator = init_G(opt)
     if opt.fine_tune:
@@ -68,8 +72,8 @@ def train(opt):
 
         writer = SummaryWriter(log_dir=opt.outf)
         fixed_noise, noise_amp, generator, d_curr = train_single_scale(d_curr, generator, reals, img_to_augment,
-                                                                       naive_img, fixed_noise, noise_amp,
-                                                                       opt, scale_num, writer)
+                                                                       naive_img, naive_img_large, fixed_noise,
+                                                                       noise_amp, opt, scale_num, writer)
 
         torch.save(fixed_noise, '%s/fixed_noise.pth' % (opt.out_))
         torch.save(generator, '%s/G.pth' % (opt.out_))
@@ -81,7 +85,8 @@ def train(opt):
 
 
 
-def train_single_scale(netD, netG, reals, img_to_augment, naive_img, fixed_noise, noise_amp, opt, depth, writer):
+def train_single_scale(netD, netG, reals, img_to_augment, naive_img, naive_img_large,
+                       fixed_noise, noise_amp, opt, depth, writer):
     reals_shapes = [real.shape for real in reals]
     real = reals[depth]
     aug = functions.Augment()
@@ -97,7 +102,13 @@ def train_single_scale(netD, netG, reals, img_to_augment, naive_img, fixed_noise
         z_opt = fixed_noise[depth]
     else:
         if depth == 0:
-            z_opt = reals[0]
+            if opt.train_mode == "harmonization":
+                z_opt = reals[0]
+            elif opt.train_mode == "editing":
+                z_opt = reals[0] + opt.noise_scaling * functions.generate_noise([opt.nc_im,
+                                                                             reals_shapes[depth][2],
+                                                                             reals_shapes[depth][3]],
+                                                                             device=opt.device).detach()
         else:
             z_opt = functions.generate_noise([opt.nfc, reals_shapes[depth][2], reals_shapes[depth][3]],
                                              device=opt.device)
@@ -162,12 +173,24 @@ def train_single_scale(netD, netG, reals, img_to_augment, naive_img, fixed_noise
         for d in range(depth + 1):
             if d == 0:
                 if opt.fine_tune:
-                    noise.append(functions.np2torch(naive_img, opt))
+                    if opt.train_mode == "harmonization":
+                        noise.append(functions.np2torch(naive_img, opt))
+                    elif opt.train_mode == "editing":
+                        noise.append(functions.np2torch(naive_img, opt) + opt.noise_scaling * functions.generate_noise(
+                            [opt.nc_im, reals_shapes[d][2], reals_shapes[d][3]], device=opt.device).detach())
                 else:
-                    data = {"image": img_to_augment}
-                    augmented = aug.transform(**data)
-                    image = augmented["image"]
-                    noise.append(functions.np2torch(image, opt))
+                    if opt.train_mode == "harmonization":
+                        data = {"image": img_to_augment}
+                        augmented = aug.transform(**data)
+                        image = augmented["image"]
+                        noise.append(functions.np2torch(image, opt))
+                    elif opt.train_mode == "editing":
+                        image = functions.shuffle_grid(img_to_augment)
+                        image = functions.np2torch(image, opt) + \
+                                opt.noise_scaling * functions.generate_noise([3, reals_shapes[d][2],
+                                                                              reals_shapes[d][3]],
+                                                                              device=opt.device).detach()
+                        noise.append(image)
             else:
                 noise.append(functions.generate_noise([opt.nfc, reals_shapes[d][2], reals_shapes[d][3]],
                                                       device=opt.device).detach())
@@ -227,9 +250,11 @@ def train_single_scale(netD, netG, reals, img_to_augment, naive_img, fixed_noise
             writer.add_scalar('Loss/train/G/reconstruction', rec_loss.item(), iter + 1)
             functions.save_image('{}/fake_sample_{}.jpg'.format(opt.outf, iter + 1), fake.detach())
             functions.save_image('{}/reconstruction_{}.jpg'.format(opt.outf, iter + 1), rec.detach())
-            generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp, writer, reals, iter + 1)
+            generate_samples(netG, img_to_augment, naive_img, naive_img_large, aug, opt, depth,
+                             noise_amp, writer, reals, iter + 1)
         elif opt.fine_tune and iter % 100 == 0:
-            generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp, writer, reals, iter + 1)
+            generate_samples(netG, img_to_augment, naive_img, naive_img_large, aug, opt, depth,
+                             noise_amp, writer, reals, iter + 1)
 
         schedulerD.step()
         schedulerG.step()
@@ -239,10 +264,12 @@ def train_single_scale(netD, netG, reals, img_to_augment, naive_img, fixed_noise
     return fixed_noise, noise_amp, netG, netD
 
 
-def generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp, writer, reals, iter, n=16):
+def generate_samples(netG, img_to_augment, naive_img, naive_img_large, aug, opt, depth,
+                     noise_amp, writer, reals, iter, n=16):
     opt.out_ = functions.generate_dir2save(opt)
     dir2save = '{}/harmonized_samples_stage_{}'.format(opt.out_, depth)
     reals_shapes = [r.shape for r in reals]
+    _name = "harmonized" if opt.train_mode == "harmonization" else "edited"
     images = []
     try:
         os.makedirs(dir2save)
@@ -259,67 +286,86 @@ def generate_samples(netG, img_to_augment, naive_img, aug, opt, depth, noise_amp
             for d in range(depth + 1):
                 if d == 0:
                     if opt.fine_tune:
-                        augmented_image = functions.np2torch(naive_img, opt)
-                        noise.append(augmented_image)
+                        if opt.train_mode == "harmonization":
+                            augmented_image = functions.np2torch(naive_img, opt)
+                            noise.append(augmented_image)
+                        elif opt.train_mode == "editing":
+                            augmented_image = functions.np2torch(naive_img, opt)
+                            noise.append(augmented_image + opt.noise_scaling *
+                                         functions.generate_noise([opt.nc_im,reals_shapes[d][2],
+                                                                   reals_shapes[d][3]], device=opt.device).detach())
                     else:
-                        data = {"image": img_to_augment}
-                        augmented = aug.transform(**data)
-                        augmented_image = functions.np2torch(augmented["image"], opt)
-                        noise.append(augmented_image)
+                        if opt.train_mode == "harmonization":
+                            data = {"image": img_to_augment}
+                            augmented = aug.transform(**data)
+                            augmented_image = functions.np2torch(augmented["image"], opt)
+                            noise.append(augmented_image)
+                        elif opt.train_mode == "editing":
+                            image = functions.shuffle_grid(img_to_augment)
+                            augmented_image = functions.np2torch(image, opt)
+                            noise.append(augmented_image + opt.noise_scaling *
+                                         functions.generate_noise([opt.nc_im, reals_shapes[d][2],
+                                                                   reals_shapes[d][3]], device=opt.device).detach())
                 else:
                     noise.append(functions.generate_noise([opt.nfc, reals_shapes[d][2], reals_shapes[d][3]],
                                                           device=opt.device).detach())
             sample = netG(noise, reals_shapes, noise_amp)
             functions.save_image('{}/{}_naive_sample.jpg'.format(dir2save, idx), augmented_image)
-            functions.save_image('{}/{}_harmonized_sample.jpg'.format(dir2save, idx), sample.detach())
+            functions.save_image('{}/{}_{}_sample.jpg'.format(dir2save, idx, _name), sample.detach())
             augmented_image = imresize_to_shape(augmented_image, sample.shape[2:], opt)
             images.append(augmented_image)
             images.append(sample.detach())
 
         if opt.fine_tune:
             mask_file_name = '{}_mask{}'.format(opt.naive_img[:-4], opt.naive_img[-4:])
+            augmented_image = imresize_to_shape(naive_img_large, sample.shape[2:], opt)
             if os.path.exists(mask_file_name):
                 mask = get_mask(mask_file_name, augmented_image, opt)
                 sample_w_mask = (1 - mask) * augmented_image + mask * sample.detach()
-                functions.save_image('{}/harmonized_sample_w_mask_{}.jpg'.format(dir2save, iter), sample_w_mask.detach())
+                functions.save_image('{}/{}_sample_w_mask_{}.jpg'.format(dir2save, _name, iter), sample_w_mask.detach())
                 images = torch.cat([augmented_image, sample.detach(), sample_w_mask], 0)
                 grid = make_grid(images, nrow=3, normalize=True)
-                writer.add_image('harmonized_images_{}'.format(depth), grid, iter)
+                writer.add_image('{}_images_{}'.format(_name, depth), grid, iter)
             else:
                 print("Warning: no mask with name {} exists for image {}".format(mask_file_name, opt.input_name))
                 print("Only showing results without mask.")
                 images = torch.cat([augmented_image, sample.detach()], 0)
                 grid = make_grid(images, nrow=2, normalize=True)
-                writer.add_image('harmonized_images_{}'.format(depth), grid, iter)
-            functions.save_image('{}/harmonized_sample_{}.jpg'.format(dir2save, iter), sample.detach())
+                writer.add_image('{}_images_{}'.format(_name, depth), grid, iter)
+            functions.save_image('{}/{}_sample_{}.jpg'.format(dir2save, _name, iter), sample.detach())
         else:
             if naive_img is not None:
                 noise = []
                 for d in range(depth + 1):
                     if d == 0:
-                        noise.append(functions.np2torch(naive_img, opt))
+                        if opt.train_mode == "harmonization":
+                            noise.append(functions.np2torch(naive_img, opt))
+                        elif opt.train_mode == "editing":
+                            noise.append(functions.np2torch(naive_img, opt) + opt.noise_scaling * \
+                                              functions.generate_noise([opt.nc_im, reals_shapes[d][2],
+                                                                        reals_shapes[d][3]],
+                                                                        device=opt.device).detach())
                     else:
                         noise.append(functions.generate_noise([opt.nfc, reals_shapes[d][2], reals_shapes[d][3]],
                                                               device=opt.device).detach())
                 sample = netG(noise, reals_shapes, noise_amp)
-                _naive_img = imresize_to_shape(functions.np2torch(naive_img, opt), sample.shape[2:], opt)
+                _naive_img = imresize_to_shape(naive_img_large, sample.shape[2:], opt)
                 images.insert(0, sample.detach())
                 images.insert(0, _naive_img)
-                functions.save_image('{}/harmonized_sample_{}.jpg'.format(dir2save, iter), sample.detach())
+                functions.save_image('{}/{}_sample_{}.jpg'.format(dir2save, _name, iter), sample.detach())
 
                 mask_file_name = '{}_mask{}'.format(opt.naive_img[:-4], opt.naive_img[-4:])
                 if os.path.exists(mask_file_name):
                     mask = get_mask(mask_file_name, _naive_img, opt)
                     sample_w_mask = (1 - mask) * _naive_img + mask * sample.detach()
-                    functions.save_image('{}/harmonized_sample_w_mask_{}.jpg'.format(dir2save, iter), sample_w_mask)
+                    functions.save_image('{}/{}_sample_w_mask_{}.jpg'.format(dir2save, _name, iter), sample_w_mask)
 
             images = torch.cat(images, 0)
             grid = make_grid(images, nrow=4, normalize=True)
-            writer.add_image('harmonized_images_{}'.format(depth), grid, iter)
+            writer.add_image('{}_images_{}'.format(_name, depth), grid, iter)
 
 
 def get_mask(mask_file_name, real_img, opt):
-    opt.mode = "harmonization"
     mask = functions.read_image_dir(mask_file_name, opt)
     if mask.shape[3] != real_img.shape[3]:
         mask = imresize_to_shape(mask, [real_img.shape[2], real_img.shape[3]], opt)

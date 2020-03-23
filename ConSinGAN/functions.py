@@ -278,9 +278,9 @@ def load_config(opt):
 
 
 def dilate_mask(mask,opt):
-    if opt.mode == "harmonization":
+    if opt.train_mode == "harmonization":
         element = morphology.disk(radius=7)
-    if opt.mode == "editing":
+    if opt.train_mode == "editing":
         element = morphology.disk(radius=20)
     mask = torch2uint8(mask)
     mask = mask[:,:,0]

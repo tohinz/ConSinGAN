@@ -23,8 +23,8 @@ def generate_samples(netG, reals_shapes, noise_amp, scale_w=1.0, scale_h=1.0, re
         if opt.train_mode == "generation" or opt.train_mode == "retarget":
             functions.save_image('{}/reconstruction.jpg'.format(dir2save), reconstruction.detach())
             functions.save_image('{}/real_image.jpg'.format(dir2save), reals[-1].detach())
-        elif opt.train_mode == "harmonization":
-            functions.save_image('{}/harmonization_wo_mask.jpg'.format(dir2save), reconstruction.detach())
+        elif opt.train_mode == "harmonization" or opt.train_mode == "editing":
+            functions.save_image('{}/{}_wo_mask.jpg'.format(dir2save, _name), reconstruction.detach())
             functions.save_image('{}/real_image.jpg'.format(dir2save), imresize_to_shape(real, reals_shapes[-1][2:], opt).detach())
         return reconstruction
 
@@ -87,48 +87,31 @@ if __name__ == '__main__':
             generate_samples(netG, reals_shapes, noise_amp, scale_w=1, scale_h=2, n=opt.num_samples)
             generate_samples(netG, reals_shapes, noise_amp, scale_w=2, scale_h=2, n=opt.num_samples)
 
-    elif opt.train_mode == "harmonization":
-        opt.mode = "harmonization"
+    elif opt.train_mode == "harmonization" or opt.train_mode == "editing":
+        opt.noise_scaling = 0.1
+        _name = "harmonized" if opt.train_mode == "harmonization" else "edited"
         real = functions.read_image_dir(opt.naive_img, opt)
         real = imresize_to_shape(real, reals_shapes[0][2:], opt)
         fixed_noise[0] = real
+        if opt.train_mode == "editing":
+            fixed_noise[0] = fixed_noise[0] + opt.noise_scaling * \
+                                              functions.generate_noise([opt.nc_im, fixed_noise[0].shape[2],
+                                                                        fixed_noise[0].shape[3]],
+                                                                        device=opt.device)
 
         out = generate_samples(netG, reals_shapes, noise_amp, reconstruct=True)
 
         mask_file_name = '{}_mask{}'.format(opt.naive_img[:-4], opt.naive_img[-4:])
         if os.path.exists(mask_file_name):
-            opt.mode = "harmonization"
             mask = functions.read_image_dir(mask_file_name, opt)
             if mask.shape[3] != out.shape[3]:
                 mask = imresize_to_shape(mask, [out.shape[2], out.shape[3]], opt)
             mask = functions.dilate_mask(mask, opt)
             out = (1 - mask) * reals[-1] + mask * out
-            functions.save_image('{}/harmonization_w_mask.jpg'.format(dir2save), out.detach())
+            functions.save_image('{}/{}_w_mask.jpg'.format(dir2save, _name), out.detach())
         else:
             print("Warning: mask {} not found.".format(mask_file_name))
-            print("Harmonization only performed without mask.")
-
-    elif opt.train_mode == "editing":
-        opt.mode = "editing"
-        noise_scaling = 0.1
-        real = functions.read_image(opt)
-        real = functions.adjust_scales2image(real, opt)
-        reals = functions.create_reals_pyramid(real, opt)
-
-        reals = reals[-opt.train_scales:]
-        reals_shapes = [r.shape for r in reals]
-        print(reals_shapes)
-
-        fixed_noise[0] = reals[0] + noise_scaling * functions.generate_noise([opt.nc_im, reals_shapes[0][2],
-                                                                              reals_shapes[0][3]],
-                                                                              device=opt.device, opt=opt).detach()
-
-        out = generate_samples(netG, reals_shapes, reconstruct=True)
-
-        mask = functions.read_image_dir('%s/%s_mask%s' % (opt.input_dir, opt.input_name[:-4], opt.input_name[-4:]), opt)
-        mask = functions.dilate_mask(mask, opt)
-        out = (1 - mask) * real + mask * out
-        functions.save_image('{}/edited_w_mask.jpg'.format(dir2save), out.detach())
+            print("Harmonization/Editing only performed without mask.")
 
     print("Done. Results saved at: {}".format(dir2save))
 

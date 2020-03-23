@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
     if opt.train_mode == "generation" or opt.train_mode == "retarget":
         from ConSinGAN.training_generation import *
-    elif opt.train_mode == "harmonization":
+    elif opt.train_mode == "harmonization" or opt.train_mode == "editing":
         if opt.fine_tune:
             if opt.model_dir == "":
                 print("Model for fine tuning not specified.")
@@ -80,14 +80,9 @@ if __name__ == '__main__':
                     print("Please specify a valid model.")
                     exit()
             if not os.path.exists(opt.naive_img):
-                print("Image for harmonization not found: {}".format(opt.naive_img))
+                print("Image for harmonization/editing not found: {}".format(opt.naive_img))
                 exit()
-        from ConSinGAN.training_harmonization import *
-    elif opt.train_mode == "editing":
-        if opt.fine_tune_model:
-            from ConSinGAN.training_editing_finetune_model import *
-        else:
-            from ConSinGAN.training_editing import *
+        from ConSinGAN.training_harmonization_editing import *
 
     dir2save = functions.generate_dir2save(opt)
 
