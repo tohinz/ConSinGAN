@@ -2,6 +2,8 @@
 
 Official implementation of the paper *"Improved Techniques for Training Single-Image GANs"* by Tobias Hinz, Matthew Fisher, Oliver Wang, and Stefan Wermter.
 
+For a short summary of our paper see our [blog post](https://www.tobiashinz.com/2020/03/24/improved-techniques-for-training-single-image-gans.html).
+
 We examine and recomment new techniques for training GANs on a *single* image.
 Our model is trained iteratively on several different resolutions of the original training image, where the resolution increases as training proceeds.
 Whenever we increase the resolution of the training image we also increase the capacity of the generator by adding additional convolutional layers.
