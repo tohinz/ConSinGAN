@@ -1,6 +1,6 @@
 # ConSinGAN
 
-Official implementation of the paper *"Improved Techniques for Training Single-Image GANs"* by Tobias Hinz, Matthew Fisher, Oliver Wang, and Stefan Wermter.
+Official implementation of the paper [*Improved Techniques for Training Single-Image GANs"* by Tobias Hinz, Matthew Fisher, Oliver Wang, and Stefan Wermter*](https://arxiv.org/abs/2003.11512).
 
 For a short summary of our paper see our [blog post](https://www.tobiashinz.com/2020/03/24/improved-techniques-for-training-single-image-gans.html).
 
