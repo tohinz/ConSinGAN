@@ -155,10 +155,11 @@ Our implementation is based on this [implementation](https://github.com/tamarott
 If you found this code useful please consider citing:
 
 ```
-@inproceedings{hinz2020improved,
+@article{hinz2020improved,
   title={Improved Techniques for Training Single-Image GANs},
   author={Tobias Hinz, Matthew Fisher, Oliver Wang, and Stefan Wermter},
-  booktitle={ArXiV},
+  journal={arXiv preprint arXiv:2003.11512},
   year={2020}
 }
 ```
+
