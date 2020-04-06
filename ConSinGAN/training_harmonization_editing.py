@@ -32,6 +32,7 @@ def train(opt):
         naive_img = functions.convert_image_np(naive_img)*255.0
     else:
         naive_img = None
+        naive_img_large = None
 
     if opt.fine_tune:
         img_to_augment = naive_img
