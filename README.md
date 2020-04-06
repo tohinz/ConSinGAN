@@ -41,7 +41,7 @@ For example, observe the difference in generated images of the Colusseum if the 
 To modify the learning rate scaling run:
 
 ```
-python main_train.py --gpu 0 --train_mode generation --input_name Images/Generation/colusseum.jpg --lr_scale 0.5
+python main_train.py --gpu 0 --train_mode generation --input_name Images/Generation/colusseum.png --lr_scale 0.5
 ```
 
 Training on more stages can help with images that exhibit a large global structure that should stay the same, see e.g.:
@@ -51,7 +51,7 @@ Training on more stages can help with images that exhibit a large global structu
 To modify the number of trained stages run:
 
 ```
-python main_train.py --gpu 0 --train_mode generation --input_name Images/Generation/colusseum.jpg --train_stages 7
+python main_train.py --gpu 0 --train_mode generation --input_name Images/Generation/colusseum.png --train_stages 7
 ```
 
 ### Results
@@ -81,7 +81,7 @@ The training, model architecture, loss function, etc stay the same, the only cha
 To train a model more suited for image generation of arbitrary sizes run:
 
 ```
-python main_train.py --gpu 0 --train_mode retarget --input_name Images/Generation/colusseum.jpg
+python main_train.py --gpu 0 --train_mode retarget --input_name Images/Generation/colusseum.png
 ```
 
 ![Retargeting Visualization](Examples/retarget_vis.jpg)
