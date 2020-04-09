@@ -86,6 +86,26 @@ python main_train.py --gpu 0 --train_mode retarget --input_name Images/Generatio
 
 ![Retargeting Visualization](Examples/retarget_vis.jpg)
 
+
+# Image Animation
+To train a default animation model (hyperparameters are the same as for image generation):
+
+```
+python main_train.py --gpu 0 --train_mode animation --input_name Images/Animation/lightning1.png
+```
+
+To generate GIFs from the trained model:
+```
+python evaluate_model.py --gpu 0 --model_dir TrainedModels/lightning1/...
+```
+
+Strong Animation          |  Medium Animation          |  Weak Animation
+:-------------------------:|:-------------------------:|:-------------------------:
+![lightning_animation](Examples/animation/lightning_strong_animation.gif) |  ![lightning_animation](Examples/animation/lightning_medium_animation.gif) |  ![lightning_animation](Examples/animation/lightning_weak_animation.gif)
+![bush_animation](Examples/animation/bush_strong_animation.gif) |  ![bush_animation](Examples/animation/bush_medium_animation.gif) |  ![bush_animation](Examples/animation/bush_weak_animation.gif)
+
+
+
 # Harmonization
 To train a default harmonization model that does not use anything besides the training image:
 
@@ -122,7 +142,6 @@ Training for the editing task is the same as for the harmonization task, except 
 
 ```
 python main_train.py --gpu 0 --train_mode editing --batch_norm --niter 1000 --input_name Images/Editing/stone.png
-
 ```
 
 or, if an naive image should be used for monitoring training progress (but not for training itself):
