@@ -105,7 +105,6 @@ Strong Animation          |  Medium Animation          |  Weak Animation
 ![bush_animation](Examples/animation/bush_strong_animation.gif) |  ![bush_animation](Examples/animation/bush_medium_animation.gif) |  ![bush_animation](Examples/animation/bush_weak_animation.gif)
 
 
-
 # Harmonization
 To train a default harmonization model that does not use anything besides the training image:
 
