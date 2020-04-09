@@ -113,5 +113,12 @@ if __name__ == '__main__':
             print("Warning: mask {} not found.".format(mask_file_name))
             print("Harmonization/Editing only performed without mask.")
 
+    elif opt.train_mode == "animation":
+        print("Generating GIFs...")
+        for _start_scale in range(3):
+            for _beta in range(80, 100, 5):
+                functions.generate_gif(dir2save, netG, fixed_noise, reals, noise_amp, opt,
+                                       alpha=0.1, beta=_beta/100.0, start_scale=_start_scale, num_images=100, fps=10)
+
     print("Done. Results saved at: {}".format(dir2save))
 

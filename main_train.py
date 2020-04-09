@@ -30,8 +30,8 @@ if __name__ == '__main__':
     parser.add_argument('--naive_img', help='naive input image  (harmonization or editing)', default="")
     parser.add_argument('--gpu', type=int, help='which GPU to use', default=0)
     parser.add_argument('--train_mode', default='generation',
-                        choices=['generation', 'retarget', 'harmonization', 'editing'],
-                        help="generation, retarget, harmonization, editing")
+                        choices=['generation', 'retarget', 'harmonization', 'editing', 'animation'],
+                        help="generation, retarget, harmonization, editing, animation")
     parser.add_argument('--lr_scale', type=float, help='scaling of learning rate for lower stages', default=0.1)
     parser.add_argument('--train_stages', type=int, help='how many stages to use for training', default=6)
 
@@ -66,7 +66,9 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         torch.cuda.set_device(opt.gpu)
 
-    if opt.train_mode == "generation" or opt.train_mode == "retarget":
+    if opt.train_mode == "generation" or opt.train_mode == "retarget" or opt.train_mode == "animation":
+        if opt.train_mode == "animation":
+            opt.min_size = 20
         from ConSinGAN.training_generation import *
     elif opt.train_mode == "harmonization" or opt.train_mode == "editing":
         if opt.fine_tune:

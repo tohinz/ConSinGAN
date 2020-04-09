@@ -70,7 +70,8 @@ class GrowingGenerator(nn.Module):
         N = int(opt.nfc)
 
         self._pad = nn.ZeroPad2d(1)
-        self._pad_block = nn.ZeroPad2d(opt.num_layer-1) if opt.train_mode == "generation" \
+        self._pad_block = nn.ZeroPad2d(opt.num_layer-1) if opt.train_mode == "generation"\
+                                                           or opt.train_mode == "animation" \
                                                         else nn.ZeroPad2d(opt.num_layer)
 
         self.head = ConvBlock(opt.nc_im, N, opt.ker_size, opt.padd_size, opt, generator=True)
@@ -94,13 +95,13 @@ class GrowingGenerator(nn.Module):
 
         # we do some upsampling for training models for unconditional generation to increase
         # the image diversity at the edges of generated images
-        if self.opt.train_mode == "generation":
+        if self.opt.train_mode == "generation" or self.opt.train_mode == "animation":
             x = upsample(x, size=[x.shape[2] + 2, x.shape[3] + 2])
         x = self._pad_block(x)
         x_prev_out = self.body[0](x)
 
         for idx, block in enumerate(self.body[1:], 1):
-            if self.opt.train_mode == "generation":
+            if self.opt.train_mode == "generation" or self.opt.train_mode == "animation":
                 x_prev_out_1 = upsample(x_prev_out, size=[real_shapes[idx][2], real_shapes[idx][3]])
                 x_prev_out_2 = upsample(x_prev_out, size=[real_shapes[idx][2] + self.opt.num_layer*2,
                                                           real_shapes[idx][3] + self.opt.num_layer*2])

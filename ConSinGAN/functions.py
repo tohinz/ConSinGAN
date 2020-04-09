@@ -6,6 +6,7 @@ import numpy as np
 import math
 from skimage import io as img
 from skimage import color, morphology, filters
+import imageio
 import os
 import random
 import datetime
@@ -83,7 +84,7 @@ def sample_random_noise(depth, reals_shapes, opt):
             noise.append(generate_noise([opt.nc_im, reals_shapes[d][2], reals_shapes[d][3]],
                                          device=opt.device).detach())
         else:
-            if opt.train_mode == "generation":
+            if opt.train_mode == "generation" or opt.train_mode == "animation":
                 noise.append(generate_noise([opt.nfc, reals_shapes[d][2] + opt.num_layer * 2,
                                              reals_shapes[d][3] + opt.num_layer * 2],
                                              device=opt.device).detach())
@@ -387,3 +388,36 @@ class Augment():
     def transform(self, **x):
         _transform = self.strong_aug()
         return _transform(**x)
+
+
+def generate_gif(dir2save, netG, fixed_noise, reals, noise_amp, opt, alpha=0.1, beta=0.9, start_scale=1,
+                 num_images=100, fps=10):
+    def denorm_for_gif(img):
+        img = denorm(img).detach()
+        img = img[0, :, :, :].cpu().numpy()
+        img = img.transpose(1, 2, 0) * 255
+        img = img.astype(np.uint8)
+        return img
+
+    reals_shapes = [r.shape for r in reals]
+    all_images = []
+
+    with torch.no_grad():
+        noise_random = sample_random_noise(len(fixed_noise) - 1, reals_shapes, opt)
+        z_prev1 = [0.99 * fixed_noise[i] + 0.01 * noise_random[i] for i in range(len(fixed_noise))]
+        z_prev2 = fixed_noise
+        for _ in range(num_images):
+            noise_random = sample_random_noise(len(fixed_noise)-1, reals_shapes, opt)
+            diff_curr = [beta*(z_prev1[i]-z_prev2[i])+(1-beta)*noise_random[i] for i in range(len(fixed_noise))]
+            z_curr = [alpha * fixed_noise[i] + (1 - alpha) * (z_prev1[i] + diff_curr[i]) for i in range(len(fixed_noise))]
+
+            if start_scale > 0:
+                z_curr = [fixed_noise[i] for i in range(start_scale)] + [z_curr[i] for i in range(start_scale, len(fixed_noise))]
+
+            z_prev2 = z_prev1
+            z_prev1 = z_curr
+
+            sample = netG(z_curr, reals_shapes, noise_amp)
+            sample = denorm_for_gif(sample)
+            all_images.append(sample)
+    imageio.mimsave('{}/start_scale={}_alpha={}_beta={}.gif'.format(dir2save, start_scale, alpha, beta), all_images, fps=fps)
