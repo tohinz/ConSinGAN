@@ -4,7 +4,7 @@ Official implementation of the paper [*Improved Techniques for Training Single-I
 
 For a short summary of our paper see our [blog post](https://www.tobiashinz.com/2020/03/24/improved-techniques-for-training-single-image-gans.html).
 
-The supplementary material can be downloaded [here](ConSinGAN-Supplementary.pdf).
+Additional data: [Video](https://ln2.sync.com/dl/b02fe0000/mapn8w8r-v5m2vaze-84jrrkma-av9mhhmc) and [Supplementary Material](ConSinGAN-Supplementary.pdf).
 
 We examine and recomment new techniques for training GANs on a *single* image.
 Our model is trained iteratively on several different resolutions of the original training image, where the resolution increases as training proceeds.
@@ -175,11 +175,12 @@ Our implementation is based on this [implementation](https://github.com/tamarott
 If you found this code useful please consider citing:
 
 ```
-@article{hinz2020improved,
-  title={Improved Techniques for Training Single-Image GANs},
-  author={Tobias Hinz, Matthew Fisher, Oliver Wang, and Stefan Wermter},
-  journal={arXiv preprint arXiv:2003.11512},
-  year={2020}
+@inproceedings{hinz2021improved,
+    author    = {Hinz, Tobias and Fisher, Matthew and Wang, Oliver and Wermter, Stefan},
+    title     = {Improved Techniques for Training Single-Image GANs},
+    booktitle = {Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
+    month     = {January},
+    year      = {2021},
+    pages     = {1300--1309}
 }
 ```
-
