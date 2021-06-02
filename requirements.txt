@@ -41,5 +41,5 @@ tensorboard==2.1.0
 torch==1.1.0
 torchvision==0.2.2.post3
 tqdm==4.27.0
-urllib3==1.25.8
+urllib3==1.26.5
 Werkzeug==1.0.0
